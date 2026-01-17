@@ -1,23 +1,39 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { usePDFStore } from '@/store/pdfStore';
+
+// Mock the PDF store
+vi.mock('@/store/pdfStore', () => ({
+  usePDFStore: vi.fn(),
+}));
+
+// Mock the API
+vi.mock('@/api/client', () => ({
+  api: {
+    removePages: vi.fn(),
+    getFileInfo: vi.fn(),
+  },
+}));
 
 describe('useKeyboardShortcuts', () => {
-  const mockHandlers = {
-    onUndo: vi.fn(),
-    onRedo: vi.fn(),
-    onDelete: vi.fn(),
-    onSelectAll: vi.fn(),
-    onRotate: vi.fn(),
-    onAnnotate: vi.fn(),
-    onZoomIn: vi.fn(),
-    onZoomOut: vi.fn(),
-    onNextPage: vi.fn(),
-    onPrevPage: vi.fn(),
+  const mockStoreState = {
+    document: { fileId: 'test-file', numPages: 5, originalName: 'test.pdf', pages: [] },
+    selectedPages: new Set([1]),
+    selectAllPages: vi.fn(),
+    clearSelection: vi.fn(),
+    togglePageSelection: vi.fn(),
+    undo: vi.fn(),
+    redo: vi.fn(),
+    undoStack: ['action1'],
+    redoStack: ['action2'],
+    setLoading: vi.fn(),
+    setError: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (usePDFStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockStoreState);
   });
 
   afterEach(() => {
@@ -27,14 +43,14 @@ describe('useKeyboardShortcuts', () => {
   it('should register keyboard event listeners', () => {
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
 
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+    renderHook(() => useKeyboardShortcuts());
 
     expect(addEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
     addEventListenerSpy.mockRestore();
   });
 
-  it('should call onUndo when Ctrl+Z is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should call undo when Ctrl+Z is pressed', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -45,11 +61,11 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onUndo).toHaveBeenCalled();
+    expect(mockStoreState.undo).toHaveBeenCalled();
   });
 
-  it('should call onRedo when Ctrl+Shift+Z is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should call redo when Ctrl+Shift+Z is pressed', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -61,11 +77,11 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onRedo).toHaveBeenCalled();
+    expect(mockStoreState.redo).toHaveBeenCalled();
   });
 
-  it('should call onRedo when Ctrl+Y is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should call redo when Ctrl+Y is pressed', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -76,11 +92,12 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onRedo).toHaveBeenCalled();
+    expect(mockStoreState.redo).toHaveBeenCalled();
   });
 
   it('should call onDelete when Delete key is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+    const onDelete = vi.fn();
+    renderHook(() => useKeyboardShortcuts({ onDelete }));
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -90,11 +107,11 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onDelete).toHaveBeenCalled();
+    expect(onDelete).toHaveBeenCalled();
   });
 
-  it('should call onSelectAll when Ctrl+A is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should call selectAllPages when Ctrl+A is pressed', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -105,11 +122,12 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onSelectAll).toHaveBeenCalled();
+    expect(mockStoreState.selectAllPages).toHaveBeenCalled();
   });
 
   it('should call onRotate when R key is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+    const onRotate = vi.fn();
+    renderHook(() => useKeyboardShortcuts({ onRotate }));
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -119,53 +137,26 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onRotate).toHaveBeenCalled();
+    expect(onRotate).toHaveBeenCalled();
   });
 
-  it('should call onAnnotate when A key is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should call onAnnotate when E key is pressed', () => {
+    const onAnnotate = vi.fn();
+    renderHook(() => useKeyboardShortcuts({ onAnnotate }));
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
-        key: 'a',
+        key: 'e',
         bubbles: true,
       });
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onAnnotate).toHaveBeenCalled();
+    expect(onAnnotate).toHaveBeenCalled();
   });
 
-  it('should call onZoomIn when + key is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
-
-    act(() => {
-      const event = new KeyboardEvent('keydown', {
-        key: '+',
-        bubbles: true,
-      });
-      window.dispatchEvent(event);
-    });
-
-    expect(mockHandlers.onZoomIn).toHaveBeenCalled();
-  });
-
-  it('should call onZoomOut when - key is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
-
-    act(() => {
-      const event = new KeyboardEvent('keydown', {
-        key: '-',
-        bubbles: true,
-      });
-      window.dispatchEvent(event);
-    });
-
-    expect(mockHandlers.onZoomOut).toHaveBeenCalled();
-  });
-
-  it('should call onNextPage when ArrowRight is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should navigate with ArrowRight key', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -175,11 +166,12 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onNextPage).toHaveBeenCalled();
+    expect(mockStoreState.clearSelection).toHaveBeenCalled();
+    expect(mockStoreState.togglePageSelection).toHaveBeenCalled();
   });
 
-  it('should call onPrevPage when ArrowLeft is pressed', () => {
-    renderHook(() => useKeyboardShortcuts(mockHandlers));
+  it('should navigate with ArrowLeft key', () => {
+    renderHook(() => useKeyboardShortcuts());
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -189,11 +181,26 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onPrevPage).toHaveBeenCalled();
+    expect(mockStoreState.clearSelection).toHaveBeenCalled();
+    expect(mockStoreState.togglePageSelection).toHaveBeenCalled();
+  });
+
+  it('should clear selection on Escape', () => {
+    renderHook(() => useKeyboardShortcuts());
+
+    act(() => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+      });
+      window.dispatchEvent(event);
+    });
+
+    expect(mockStoreState.clearSelection).toHaveBeenCalled();
   });
 
   it('should not trigger shortcuts when disabled', () => {
-    renderHook(() => useKeyboardShortcuts({ ...mockHandlers, enabled: false }));
+    renderHook(() => useKeyboardShortcuts({ enabled: false }));
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -204,13 +211,33 @@ describe('useKeyboardShortcuts', () => {
       window.dispatchEvent(event);
     });
 
-    expect(mockHandlers.onUndo).not.toHaveBeenCalled();
+    expect(mockStoreState.undo).not.toHaveBeenCalled();
+  });
+
+  it('should not trigger when no document is loaded', () => {
+    (usePDFStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockStoreState,
+      document: null,
+    });
+
+    renderHook(() => useKeyboardShortcuts());
+
+    act(() => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'z',
+        ctrlKey: true,
+        bubbles: true,
+      });
+      window.dispatchEvent(event);
+    });
+
+    expect(mockStoreState.undo).not.toHaveBeenCalled();
   });
 
   it('should cleanup event listeners on unmount', () => {
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
-    const { unmount } = renderHook(() => useKeyboardShortcuts(mockHandlers));
+    const { unmount } = renderHook(() => useKeyboardShortcuts());
     unmount();
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));

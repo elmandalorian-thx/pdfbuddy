@@ -24,7 +24,7 @@ describe('useTheme', () => {
     document.documentElement.classList.remove('dark', 'light');
   });
 
-  it('should default to light mode when no preference is stored', () => {
+  it('should default to system mode when no preference is stored', () => {
     localStorageMock.getItem.mockReturnValue(null);
     Object.defineProperty(window, 'matchMedia', {
       value: vi.fn().mockImplementation(() => ({
@@ -38,7 +38,7 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.isDark).toBe(false);
-    expect(result.current.theme).toBe('light');
+    expect(result.current.theme).toBe('system');
   });
 
   it('should use stored theme from localStorage', () => {
@@ -72,7 +72,8 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.isDark).toBe(true);
-    expect(result.current.theme).toBe('dark');
+    expect(result.current.theme).toBe('system');
+    expect(result.current.resolvedTheme).toBe('dark');
   });
 
   it('should toggle theme from light to dark', () => {
@@ -96,7 +97,7 @@ describe('useTheme', () => {
 
     expect(result.current.isDark).toBe(true);
     expect(result.current.theme).toBe('dark');
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'dark');
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('pdfbuddy-theme', 'dark');
   });
 
   it('should toggle theme from dark to light', () => {
@@ -120,7 +121,7 @@ describe('useTheme', () => {
 
     expect(result.current.isDark).toBe(false);
     expect(result.current.theme).toBe('light');
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'light');
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('pdfbuddy-theme', 'light');
   });
 
   it('should set theme explicitly', () => {

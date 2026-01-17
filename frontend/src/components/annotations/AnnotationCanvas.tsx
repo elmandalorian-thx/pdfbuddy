@@ -179,10 +179,12 @@ export function AnnotationCanvas({
       canvas.remove(path);
     };
 
-    canvas.on('path:created', handlePathCreated);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('path:created', handlePathCreated as any);
 
     return () => {
-      canvas.off('path:created', handlePathCreated);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('path:created', handlePathCreated as any);
     };
   }, [currentTool, toolSettings, pageNumber, addAnnotation]);
 
@@ -198,14 +200,16 @@ export function AnnotationCanvas({
       }
     };
 
-    canvas.on('mouse:down', handleMouseDown);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('mouse:down', handleMouseDown as any);
 
     // Change cursor for eraser
     canvas.defaultCursor = 'crosshair';
     canvas.hoverCursor = 'crosshair';
 
     return () => {
-      canvas.off('mouse:down', handleMouseDown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('mouse:down', handleMouseDown as any);
       canvas.defaultCursor = 'default';
       canvas.hoverCursor = 'move';
     };

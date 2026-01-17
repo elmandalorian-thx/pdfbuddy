@@ -1,0 +1,17 @@
+# Railway deployment configuration
+# Deploy with: railway up
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = ""
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "pdfbuddy"
+port = 8080

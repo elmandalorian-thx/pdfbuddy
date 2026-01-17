@@ -339,16 +339,83 @@ pdfbuddy/
 - **No tracking** - No analytics or user tracking
 - **Encrypted exports** - Optional AES-256 password protection
 
+## Deployment
+
+### One-Click Deploy
+
+| Platform | Deploy Button |
+|----------|---------------|
+| Railway | [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template) |
+| Render | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy) |
+
+### Manual Deployment
+
+#### Using Docker (Recommended)
+
+```bash
+# Build and run with Docker Compose (development)
+docker-compose up --build
+
+# Or build production image
+docker build -f Dockerfile.production -t pdfbuddy .
+docker run -p 8080:8080 pdfbuddy
+```
+
+#### Railway
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway up
+```
+
+#### Fly.io
+
+```bash
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
+
+# Login and deploy
+fly auth login
+fly launch
+fly deploy
+```
+
+#### Render
+
+1. Connect your GitHub repository to Render
+2. Create a new "Web Service"
+3. Render will auto-detect the `render.yaml` configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | 8080 | Server port |
+| `MAX_FILE_SIZE` | 100MB | Maximum upload size |
+| `FILE_EXPIRY_HOURS` | 1 | Auto-cleanup interval |
+
+## Completed Features
+
+- [x] Dark mode theme with system preference detection
+- [x] Keyboard shortcuts (Ctrl+Z/Y, Delete, arrows, Ctrl+A)
+- [x] Touch gestures for mobile (pinch-to-zoom, swipe)
+- [x] PDF form filling
+- [x] Metadata editor (title, author, subject, keywords)
+- [x] Docker deployment (development & production)
+- [x] Unit tests (pytest + vitest)
+- [x] Modern responsive UI with animations
+
 ## Roadmap
 
-- [ ] Dark mode theme
-- [ ] Keyboard shortcuts (Ctrl+Z, Delete, arrows)
-- [ ] Touch gestures for mobile
-- [ ] PDF form filling
-- [ ] Metadata editor (title, author, etc.)
-- [ ] Batch operations UI
-- [ ] Docker deployment
 - [ ] E2E tests with Playwright
+- [ ] PDF digital signatures
+- [ ] OCR for scanned documents
+- [ ] Batch processing UI
 
 ## Contributing
 

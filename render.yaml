@@ -1,0 +1,19 @@
+# Render.com Blueprint
+# Deploy at: https://render.com/deploy
+
+services:
+  - type: web
+    name: pdfbuddy
+    runtime: docker
+    dockerfilePath: ./Dockerfile.production
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    disk:
+      name: pdf-storage
+      mountPath: /app/uploads
+      sizeGB: 1

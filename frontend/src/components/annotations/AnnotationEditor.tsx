@@ -68,7 +68,7 @@ export function AnnotationEditor({ initialPage = 1, onClose }: AnnotationEditorP
       const annotationsForApi: Record<number, unknown[]> = {};
 
       Object.entries(annotations).forEach(([page, pageAnnotations]) => {
-        annotationsForApi[parseInt(page)] = pageAnnotations.map((a) => ({
+        annotationsForApi[parseInt(page)] = pageAnnotations.map((a: { type: string; points: [number, number][]; color: string; width: number; opacity: number }) => ({
           type: a.type,
           points: a.points,
           color: a.color,
