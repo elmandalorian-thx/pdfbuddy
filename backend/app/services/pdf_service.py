@@ -589,6 +589,180 @@ class PDFService:
 
         return output_path
 
+    @staticmethod
+    def get_form_fields(file_path: Path) -> Dict[str, Any]:
+        """Get all form fields from a PDF."""
+        fields = {}
+
+        try:
+            reader = PdfReader(file_path)
+
+            if reader.get_fields():
+                for field_name, field_data in reader.get_fields().items():
+                    field_type = field_data.get('/FT', '')
+                    field_value = field_data.get('/V', '')
+
+                    # Convert field type to readable format
+                    type_map = {
+                        '/Tx': 'text',
+                        '/Btn': 'checkbox',
+                        '/Ch': 'choice',
+                        '/Sig': 'signature'
+                    }
+
+                    fields[field_name] = {
+                        'type': type_map.get(str(field_type), 'unknown'),
+                        'value': str(field_value) if field_value else '',
+                        'name': field_name,
+                        'readonly': bool(field_data.get('/Ff', 0) & 1)
+                    }
+
+                    # Get options for choice fields
+                    if field_type == '/Ch':
+                        options = field_data.get('/Opt', [])
+                        fields[field_name]['options'] = [str(o) for o in options]
+
+        except Exception as e:
+            # PDF might not have form fields
+            pass
+
+        return fields
+
+    @staticmethod
+    def fill_form_fields(
+        file_path: Path,
+        output_path: Path,
+        field_values: Dict[str, str]
+    ) -> Path:
+        """Fill form fields in a PDF."""
+        reader = PdfReader(file_path)
+        writer = PdfWriter()
+
+        # Clone the PDF
+        writer.append(reader)
+
+        # Update form fields
+        if writer.pages:
+            writer.update_page_form_field_values(
+                writer.pages[0],
+                field_values
+            )
+
+        with open(output_path, "wb") as f:
+            writer.write(f)
+
+        return output_path
+
+    @staticmethod
+    def get_metadata(file_path: Path) -> Dict[str, Any]:
+        """Get PDF metadata."""
+        metadata = {
+            'title': '',
+            'author': '',
+            'subject': '',
+            'keywords': '',
+            'creator': '',
+            'producer': '',
+            'creation_date': '',
+            'modification_date': ''
+        }
+
+        try:
+            reader = PdfReader(file_path)
+            if reader.metadata:
+                metadata['title'] = reader.metadata.title or ''
+                metadata['author'] = reader.metadata.author or ''
+                metadata['subject'] = reader.metadata.subject or ''
+                metadata['creator'] = reader.metadata.creator or ''
+                metadata['producer'] = reader.metadata.producer or ''
+
+                # Handle creation date
+                if reader.metadata.creation_date:
+                    metadata['creation_date'] = str(reader.metadata.creation_date)
+
+                # Handle modification date
+                if reader.metadata.modification_date:
+                    metadata['modification_date'] = str(reader.metadata.modification_date)
+
+            # Try to get keywords from XMP metadata
+            with pikepdf.open(file_path) as pdf:
+                if pdf.docinfo:
+                    keywords = pdf.docinfo.get('/Keywords', '')
+                    if keywords:
+                        metadata['keywords'] = str(keywords)
+
+        except Exception:
+            pass
+
+        return metadata
+
+    @staticmethod
+    def update_metadata(
+        file_path: Path,
+        output_path: Path,
+        metadata: Dict[str, str]
+    ) -> Path:
+        """Update PDF metadata."""
+        with pikepdf.open(file_path) as pdf:
+            with pdf.open_metadata() as meta:
+                if metadata.get('title'):
+                    meta['dc:title'] = metadata['title']
+                if metadata.get('author'):
+                    meta['dc:creator'] = [metadata['author']]
+                if metadata.get('subject'):
+                    meta['dc:description'] = metadata['subject']
+                if metadata.get('keywords'):
+                    meta['pdf:Keywords'] = metadata['keywords']
+
+            # Also update docinfo for compatibility
+            if metadata.get('title'):
+                pdf.docinfo['/Title'] = metadata['title']
+            if metadata.get('author'):
+                pdf.docinfo['/Author'] = metadata['author']
+            if metadata.get('subject'):
+                pdf.docinfo['/Subject'] = metadata['subject']
+            if metadata.get('keywords'):
+                pdf.docinfo['/Keywords'] = metadata['keywords']
+
+            pdf.save(output_path)
+
+        return output_path
+
+    @staticmethod
+    def compare_pdfs(
+        file_path1: Path,
+        file_path2: Path,
+        page_num: int,
+        output_dir: Path
+    ) -> Tuple[Path, Path]:
+        """Generate comparison images for two PDFs at a specific page."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate images for both PDFs
+        images1 = convert_from_path(
+            file_path1,
+            dpi=150,
+            first_page=page_num,
+            last_page=page_num
+        )
+
+        images2 = convert_from_path(
+            file_path2,
+            dpi=150,
+            first_page=page_num,
+            last_page=page_num
+        )
+
+        path1 = output_dir / f"before_page_{page_num}.png"
+        path2 = output_dir / f"after_page_{page_num}.png"
+
+        if images1:
+            images1[0].save(path1, "PNG")
+        if images2:
+            images2[0].save(path2, "PNG")
+
+        return path1, path2
+
 
 # Create singleton instance
 pdf_service = PDFService()

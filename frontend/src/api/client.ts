@@ -229,6 +229,86 @@ export const api = {
     const response = await client.get(`/file/${fileId}/info`);
     return response.data;
   },
+
+  // Form filling
+  async getFormFields(fileId: string): Promise<{
+    success: boolean;
+    fields: Record<string, {
+      type: string;
+      value: string;
+      name: string;
+      readonly: boolean;
+      options?: string[];
+    }>;
+    has_forms: boolean;
+  }> {
+    const response = await client.get(`/form-fields/${fileId}`);
+    return response.data;
+  },
+
+  async fillForm(
+    fileId: string,
+    fieldValues: Record<string, string>
+  ): Promise<OperationResponse> {
+    const response = await client.post<OperationResponse>('/fill-form', {
+      file_id: fileId,
+      field_values: fieldValues,
+    });
+    return response.data;
+  },
+
+  // Metadata
+  async getMetadata(fileId: string): Promise<{
+    success: boolean;
+    metadata: {
+      title: string;
+      author: string;
+      subject: string;
+      keywords: string;
+      creator: string;
+      producer: string;
+      creation_date: string;
+      modification_date: string;
+    };
+  }> {
+    const response = await client.get(`/metadata/${fileId}`);
+    return response.data;
+  },
+
+  async updateMetadata(
+    fileId: string,
+    metadata: {
+      title?: string;
+      author?: string;
+      subject?: string;
+      keywords?: string;
+    }
+  ): Promise<OperationResponse> {
+    const response = await client.post<OperationResponse>('/metadata', {
+      file_id: fileId,
+      ...metadata,
+    });
+    return response.data;
+  },
+
+  // Upload with progress
+  async uploadPDFWithProgress(
+    file: File,
+    onProgress: (progress: number) => void
+  ): Promise<UploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post<UploadResponse>('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+    return response.data;
+  },
 };
 
 export default api;

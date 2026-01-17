@@ -705,3 +705,175 @@ async def get_file_info(file_id: str):
         return {**file_info, **pdf_info}
 
     return file_info
+
+
+# Form filling endpoints
+class FillFormRequest(BaseModel):
+    file_id: str
+    field_values: dict  # {field_name: value}
+
+
+@router.get("/form-fields/{file_id}")
+async def get_form_fields(file_id: str):
+    """Get all form fields from a PDF."""
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+
+    try:
+        fields = pdf_service.get_form_fields(file_path)
+        return {
+            "success": True,
+            "file_id": file_id,
+            "fields": fields,
+            "has_forms": len(fields) > 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/fill-form")
+async def fill_form(request: FillFormRequest):
+    """Fill form fields in a PDF."""
+    file_info = file_service.get_file_info(request.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+    output_path = PROCESSED_DIR / request.file_id / "filled.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        pdf_service.fill_form_fields(file_path, output_path, request.field_values)
+        file_service.update_file_path(request.file_id, output_path)
+
+        pdf_info = pdf_service.get_pdf_info(output_path)
+        pdf_service.generate_thumbnails(output_path, request.file_id)
+        thumbnail_urls = [f"/api/thumbnail/{request.file_id}/{i+1}" for i in range(pdf_info["num_pages"])]
+
+        return {
+            "success": True,
+            "file_id": request.file_id,
+            "thumbnail_urls": thumbnail_urls
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Metadata endpoints
+class UpdateMetadataRequest(BaseModel):
+    file_id: str
+    title: Optional[str] = None
+    author: Optional[str] = None
+    subject: Optional[str] = None
+    keywords: Optional[str] = None
+
+
+@router.get("/metadata/{file_id}")
+async def get_metadata(file_id: str):
+    """Get PDF metadata."""
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+
+    try:
+        metadata = pdf_service.get_metadata(file_path)
+        return {
+            "success": True,
+            "file_id": file_id,
+            "metadata": metadata
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/metadata")
+async def update_metadata(request: UpdateMetadataRequest):
+    """Update PDF metadata."""
+    file_info = file_service.get_file_info(request.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+    output_path = PROCESSED_DIR / request.file_id / "metadata_updated.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        metadata = {}
+        if request.title:
+            metadata['title'] = request.title
+        if request.author:
+            metadata['author'] = request.author
+        if request.subject:
+            metadata['subject'] = request.subject
+        if request.keywords:
+            metadata['keywords'] = request.keywords
+
+        pdf_service.update_metadata(file_path, output_path, metadata)
+        file_service.update_file_path(request.file_id, output_path)
+
+        return {
+            "success": True,
+            "file_id": request.file_id,
+            "message": "Metadata updated successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Compare/Preview endpoints
+@router.get("/compare/{file_id}/{page_num}")
+async def compare_pages(file_id: str, page_num: int, original_file_id: Optional[str] = None):
+    """Generate before/after comparison for a page."""
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    current_path = Path(file_info["path"])
+
+    # Try to find original file
+    original_path = None
+    if original_file_id:
+        original_info = file_service.get_file_info(original_file_id)
+        if original_info:
+            original_path = Path(original_info["path"])
+
+    output_dir = TEMP_DIR / file_id / "compare"
+
+    try:
+        if original_path and original_path.exists():
+            before_path, after_path = pdf_service.compare_pdfs(
+                original_path, current_path, page_num, output_dir
+            )
+            return {
+                "success": True,
+                "before_url": f"/api/compare-image/{file_id}/before/{page_num}",
+                "after_url": f"/api/compare-image/{file_id}/after/{page_num}"
+            }
+        else:
+            # Just return current preview
+            return {
+                "success": True,
+                "before_url": None,
+                "after_url": f"/api/preview/{file_id}/{page_num}"
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/compare-image/{file_id}/{type}/{page_num}")
+async def get_compare_image(file_id: str, type: str, page_num: int):
+    """Get comparison image (before or after)."""
+    if type not in ["before", "after"]:
+        raise HTTPException(status_code=400, detail="Type must be 'before' or 'after'")
+
+    image_path = TEMP_DIR / file_id / "compare" / f"{type}_page_{page_num}.png"
+
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Comparison image not found")
+
+    return FileResponse(image_path, media_type="image/png")

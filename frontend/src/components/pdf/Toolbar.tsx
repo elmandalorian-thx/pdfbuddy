@@ -238,7 +238,7 @@ export function Toolbar() {
       if (response.success && response.split_files) {
         // Download all split files
         for (const file of response.split_files) {
-          const link = document.createElement('a');
+          const link = window.document.createElement('a');
           link.href = file.download_url;
           link.download = file.filename;
           link.click();
@@ -287,7 +287,7 @@ export function Toolbar() {
     try {
       await api.encryptPDF(document.fileId, password);
       // Download encrypted file
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = api.getDownloadUrl(document.fileId);
       link.download = `encrypted_${document.originalName}`;
       link.click();
@@ -315,7 +315,7 @@ export function Toolbar() {
 
       if (result instanceof Blob) {
         const url = URL.createObjectURL(result);
-        const link = document.createElement('a');
+        const link = window.document.createElement('a');
         link.href = url;
         link.download = 'extracted_text.txt';
         link.click();
@@ -333,7 +333,7 @@ export function Toolbar() {
   const handleDownload = () => {
     if (!document) return;
 
-    const link = document.createElement('a');
+    const link = window.document.createElement('a');
     link.href = api.getDownloadUrl(document.fileId);
     link.download = document.originalName;
     link.click();

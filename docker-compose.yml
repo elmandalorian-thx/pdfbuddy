@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pdfbuddy-backend
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MAX_FILE_SIZE=104857600  # 100MB in bytes
+      - FILE_EXPIRY_HOURS=1
+    volumes:
+      - pdf_uploads:/app/uploads
+      - pdf_processed:/app/processed
+      - pdf_temp:/app/temp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pdfbuddy-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pdfbuddy-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - pdfbuddy-network
+
+networks:
+  pdfbuddy-network:
+    driver: bridge
+
+volumes:
+  pdf_uploads:
+    driver: local
+  pdf_processed:
+    driver: local
+  pdf_temp:
+    driver: local
