@@ -2,10 +2,11 @@
 
 ## Overview
 
-This document outlines implementation plans for two major features to improve PDF Buddy's competitive position:
+This document outlines implementation plans for major features to improve PDF Buddy's competitive position:
 
 1. **AI Document Assistant** - Chat with PDFs, summarization, data extraction ✅ **IMPLEMENTED**
 2. **Smart Commands** - Natural language interface for PDF operations ✅ **IMPLEMENTED**
+3. **Browser Extension** - Capture web pages as PDFs ✅ **IMPLEMENTED**
 
 ---
 
@@ -107,8 +108,78 @@ Allow users to control PDF operations using natural language commands like "Remo
 
 ---
 
+## Feature 3: Browser Extension ✅ IMPLEMENTED
+
+### Summary
+Chrome/Edge browser extension to capture web pages as PDFs and send them to PDF Buddy for editing.
+
+### Architecture
+
+```
+Browser Extension                    PDF Buddy
+┌─────────────────┐                ┌─────────────────┐
+│  Popup UI       │                │  Frontend       │
+│  (popup.js)     │                │  (React)        │
+├─────────────────┤                ├─────────────────┤
+│  Background     │───Upload PDF──►│  Backend        │
+│  (service worker│                │  (FastAPI)      │
+├─────────────────┤                └─────────────────┘
+│  Content Script │
+│  (capture logic)│
+└─────────────────┘
+```
+
+### Files Created
+
+```
+browser-extension/
+├── manifest.json              # Manifest V3 configuration
+├── README.md                  # Installation & usage guide
+└── src/
+    ├── popup/
+    │   ├── popup.html         # Extension popup UI
+    │   ├── popup.css          # Popup styles
+    │   └── popup.js           # Popup logic
+    ├── background/
+    │   └── background.js      # Service worker for capture
+    ├── content/
+    │   ├── content.js         # Page interaction scripts
+    │   └── content.css        # Selection overlay styles
+    └── icons/
+        └── generate-icons.html # Icon generator
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Full Page Capture** | Capture entire scrollable page |
+| **Visible Area** | Capture current viewport |
+| **Selection Mode** | Draw rectangle to capture area |
+| **Text Selection** | Right-click text → save as PDF |
+| **Image Capture** | Right-click image → save as PDF |
+| **PDF Buddy Integration** | Send directly to app for editing |
+
+### How to Install
+
+1. Open `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `browser-extension` folder
+
+### Settings
+
+- PDF Buddy URL (for integration)
+- Default action (download vs edit)
+- Paper size (auto/letter/A4/legal)
+- Include backgrounds
+- Include images
+
+---
+
 ## Next Steps
 
 1. ✅ Smart Commands - Completed
 2. ✅ AI Document Assistant - Completed
-3. Future ideas: Browser extension, PDF/A compliance, cloud storage integration
+3. ✅ Browser Extension - Completed
+4. Future ideas: PDF/A compliance, cloud storage integration, redaction tools
