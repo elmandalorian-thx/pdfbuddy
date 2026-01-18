@@ -86,6 +86,16 @@ export const api = {
     return response.data;
   },
 
+  async appendPDF(fileId: string, file: File): Promise<OperationResponse> {
+    const formData = new FormData();
+    formData.append('file_id', fileId);
+    formData.append('file', file);
+    const response = await client.post<OperationResponse>('/append', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   async splitPDF(
     fileId: string,
     mode: 'individual' | 'ranges' | 'count',
