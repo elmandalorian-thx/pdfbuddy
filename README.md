@@ -1,12 +1,22 @@
 <p align="center">
+  <a href="https://pdfbuddy-production.up.railway.app" target="_blank">
+    <img src="https://img.shields.io/badge/🚀_TRY_IT_LIVE-pdfbuddy--production.up.railway.app-4F46E5?style=for-the-badge&labelColor=1F2937" alt="Try PDF Buddy Live"/>
+  </a>
+</p>
+
+<h1 align="center">🔖 PDF Buddy</h1>
+
+<p align="center">
+  <a href="https://pdfbuddy-production.up.railway.app"><strong>👉 pdfbuddy-production.up.railway.app 👈</strong></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/PDF-Editor-blue?style=for-the-badge&logo=adobe-acrobat-reader" alt="PDF Editor"/>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react" alt="React 18"/>
   <img src="https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python" alt="Python"/>
 </p>
-
-<h1 align="center">PDF Buddy</h1>
 
 <p align="center">
   <strong>A comprehensive, privacy-focused PDF editor that runs entirely in your browser</strong>
@@ -47,6 +57,7 @@
 ### Annotation Tools
 - **Pen Tool** - Freehand drawing with 6+ colors and adjustable width (1-10px)
 - **Highlighter** - Semi-transparent with 5 colors and opacity control (20-60%)
+- **Text Tool** - Add text with formatting (font, size, bold, italic, underline, colors)
 - **Eraser** - Remove specific annotations
 - **Undo/Redo** - Full history support for all operations
 
@@ -77,15 +88,10 @@
 ## Demo
 
 <p align="center">
-  <em>Screenshots coming soon</em>
+  <a href="https://pdfbuddy-production.up.railway.app">
+    <strong>🌐 Try the Live Demo: pdfbuddy-production.up.railway.app</strong>
+  </a>
 </p>
-
-<!--
-Add screenshots here:
-![Upload](docs/screenshots/upload.png)
-![Editor](docs/screenshots/editor.png)
-![Annotations](docs/screenshots/annotations.png)
--->
 
 ### Key Interactions
 

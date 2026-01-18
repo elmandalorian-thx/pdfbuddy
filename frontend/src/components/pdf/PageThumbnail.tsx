@@ -9,6 +9,7 @@ interface PageThumbnailProps {
   page: PageInfo;
   isSelected: boolean;
   isDragging?: boolean;
+  isLoading?: boolean;
   onSelect: (pageNumber: number, shiftKey: boolean, ctrlKey: boolean) => void;
   onRotate?: (pageNumber: number) => void;
   onDelete?: (pageNumber: number) => void;
@@ -19,6 +20,7 @@ export function PageThumbnail({
   page,
   isSelected,
   isDragging,
+  isLoading = false,
   onSelect,
   onRotate,
   onDelete,
@@ -99,21 +101,32 @@ export function PageThumbnail({
           onSelect(page.pageNumber, false, true);
         }}
         className={cn(
-          'absolute top-4 left-4 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300',
+          'absolute top-4 left-4 z-20 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300',
           'cursor-pointer hover:scale-110',
           isSelected
-            ? 'bg-primary scale-100 shadow-lg shadow-primary/30'
-            : 'bg-white/80 dark:bg-gray-800/80 border border-border scale-100 hover:border-primary'
+            ? 'bg-primary scale-100 shadow-lg shadow-primary/50 ring-2 ring-primary/30 ring-offset-2 ring-offset-background animate-pulse-once'
+            : 'bg-white/90 dark:bg-gray-800/90 border-2 border-muted-foreground/30 hover:border-primary hover:bg-primary/10 hover:shadow-md'
         )}
-        title={isSelected ? 'Deselect page' : 'Select page'}
+        title={isSelected ? 'Click to deselect' : 'Click to select for bulk actions'}
         aria-label={isSelected ? 'Deselect page' : 'Select page'}
       >
         {isSelected ? (
-          <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
+          <Check className="w-5 h-5 text-primary-foreground" strokeWidth={3} />
         ) : (
-          <div className="w-3 h-3 rounded-full border-2 border-muted-foreground/40" />
+          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/50 group-hover:border-primary transition-colors" />
         )}
       </button>
+
+      {/* Selection hint tooltip - shows on hover when not selected */}
+      {!isSelected && (
+        <div className={cn(
+          'absolute top-12 left-2 z-30 px-2 py-1 rounded text-xs whitespace-nowrap',
+          'bg-black/80 text-white dark:bg-white/90 dark:text-black',
+          'opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none'
+        )}>
+          Click to select
+        </div>
+      )}
 
       {/* Drag handle - visible on touch/hover */}
       <div
@@ -206,19 +219,22 @@ export function PageThumbnail({
           'border border-border/50 shadow-xl',
           'opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100',
           'transition-all duration-200',
-          showActions && 'opacity-100 scale-100'
+          showActions && 'opacity-100 scale-100',
+          isLoading && 'pointer-events-none opacity-50'
         )}
       >
         {onAnnotate && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onAnnotate(page.pageNumber);
+              if (!isLoading) onAnnotate(page.pageNumber);
             }}
+            disabled={isLoading}
             className={cn(
               'p-2.5 rounded-lg transition-all duration-200 touch-target',
               'hover:bg-primary hover:text-primary-foreground',
-              'active:scale-95'
+              'active:scale-95',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
             title="Annotate page"
             aria-label="Annotate page"
@@ -230,29 +246,33 @@ export function PageThumbnail({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onRotate(page.pageNumber);
+              if (!isLoading) onRotate(page.pageNumber);
             }}
+            disabled={isLoading}
             className={cn(
               'p-2.5 rounded-lg transition-all duration-200 touch-target',
               'hover:bg-primary hover:text-primary-foreground',
-              'active:scale-95'
+              'active:scale-95',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
             title="Rotate 90°"
             aria-label="Rotate page 90 degrees"
           >
-            <RotateCw className="w-4 h-4" />
+            <RotateCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
           </button>
         )}
         {onDelete && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(page.pageNumber);
+              if (!isLoading) onDelete(page.pageNumber);
             }}
+            disabled={isLoading}
             className={cn(
               'p-2.5 rounded-lg transition-all duration-200 touch-target',
               'hover:bg-destructive hover:text-destructive-foreground',
-              'active:scale-95'
+              'active:scale-95',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
             title="Delete page"
             aria-label="Delete page"
