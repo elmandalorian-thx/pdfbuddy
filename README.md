@@ -242,6 +242,36 @@ Open **http://localhost:5173** in your browser.
 | `/api/extract-tables` | POST | Extract tables |
 | `/api/extract-images` | POST | Extract embedded images |
 
+### Digital Signatures
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/signature/status` | GET | Check signature availability |
+| `/api/signature/info/{file_id}` | GET | Get existing signature info |
+| `/api/signature/add` | POST | Add visual signature to PDF |
+
+### OCR (Optical Character Recognition)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/ocr/status` | GET | Check OCR availability |
+| `/api/ocr/languages` | GET | Get supported languages |
+| `/api/ocr/extract` | POST | Extract text using OCR |
+| `/api/ocr/searchable` | POST | Create searchable PDF |
+
+### Batch Processing
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/batch/operations` | GET | List available operations |
+| `/api/batch/upload` | POST | Upload multiple files |
+| `/api/batch/watermark` | POST | Batch add watermarks |
+| `/api/batch/encrypt` | POST | Batch encrypt PDFs |
+| `/api/batch/rotate` | POST | Batch rotate pages |
+| `/api/batch/extract-text` | POST | Batch extract text |
+| `/api/batch/merge` | POST | Merge multiple PDFs |
+| `/api/batch/download-zip` | POST | Download results as ZIP |
+
 <details>
 <summary><strong>Example: Reorder Pages</strong></summary>
 
@@ -409,13 +439,19 @@ fly deploy
 - [x] Docker deployment (development & production)
 - [x] Unit tests (pytest + vitest)
 - [x] Modern responsive UI with animations
+- [x] E2E tests with Playwright
+- [x] PDF digital signatures (visual signatures with name, reason, location)
+- [x] OCR for scanned documents (text extraction and searchable PDF creation)
+- [x] Batch processing UI (watermark, encrypt, rotate, merge, extract text)
 
 ## Roadmap
 
-- [ ] E2E tests with Playwright
-- [ ] PDF digital signatures
-- [ ] OCR for scanned documents
-- [ ] Batch processing UI
+All planned features have been implemented! Future enhancements may include:
+
+- [ ] Cryptographic digital signatures with certificates
+- [ ] Cloud storage integration
+- [ ] Collaboration features
+- [ ] PDF/A compliance conversion
 
 ## Contributing
 
@@ -435,6 +471,15 @@ cd backend && pytest
 
 # Run frontend in development
 cd frontend && npm run dev
+
+# Run frontend unit tests
+cd frontend && npm run test
+
+# Run E2E tests with Playwright
+cd frontend && npm run test:e2e
+
+# Run E2E tests in headed mode (see browser)
+cd frontend && npm run test:e2e:headed
 
 # Build for production
 cd frontend && npm run build
