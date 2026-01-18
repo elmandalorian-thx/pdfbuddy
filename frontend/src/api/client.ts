@@ -4,6 +4,14 @@ import type {
   OperationResponse,
   SplitResponse,
   ExportQuality,
+  ParsedCommandResponse,
+  ExecuteCommandResponse,
+  CommandSuggestion,
+  CommandCapabilities,
+  AIStatusResponse,
+  AIChatResponse,
+  AISummarizeResponse,
+  AIExtractResponse,
 } from '@/types';
 
 const API_BASE = '/api';
@@ -515,6 +523,208 @@ export const api = {
       file_ids: fileIds,
     });
     return response.data;
+  },
+
+  // ==========================================================================
+  // Smart Commands
+  // ==========================================================================
+
+  async parseSmartCommand(
+    command: string,
+    fileId: string,
+    selectedPages?: number[]
+  ): Promise<ParsedCommandResponse> {
+    const response = await client.post<ParsedCommandResponse>('/smart-command/parse', {
+      command,
+      file_id: fileId,
+      selected_pages: selectedPages,
+    });
+    return response.data;
+  },
+
+  async executeSmartCommand(
+    fileId: string,
+    intent: string,
+    parameters: Record<string, unknown>,
+    confirmed: boolean = true
+  ): Promise<ExecuteCommandResponse> {
+    const response = await client.post<ExecuteCommandResponse>('/smart-command/execute', {
+      file_id: fileId,
+      intent,
+      parameters,
+      confirmed,
+    });
+    return response.data;
+  },
+
+  async getCommandSuggestions(prefix?: string): Promise<{
+    suggestions: CommandSuggestion[];
+    recent: string[];
+  }> {
+    const response = await client.get('/smart-command/suggestions', {
+      params: { prefix },
+    });
+    return response.data;
+  },
+
+  async getCommandCapabilities(): Promise<CommandCapabilities> {
+    const response = await client.get<CommandCapabilities>('/smart-command/capabilities');
+    return response.data;
+  },
+
+  // ==========================================================================
+  // AI Assistant
+  // ==========================================================================
+
+  async getAIStatus(): Promise<AIStatusResponse> {
+    const response = await client.get<AIStatusResponse>('/ai/status');
+    return response.data;
+  },
+
+  async aiChat(
+    fileId: string,
+    message: string,
+    sessionId?: string,
+    pages?: number[]
+  ): Promise<AIChatResponse> {
+    const response = await client.post<AIChatResponse>('/ai/chat', {
+      file_id: fileId,
+      message,
+      session_id: sessionId,
+      pages,
+    });
+    return response.data;
+  },
+
+  aiChatStream(
+    fileId: string,
+    message: string,
+    sessionId?: string,
+    pages?: number[],
+    onChunk: (text: string) => void = () => {},
+    onComplete: (sessionId: string) => void = () => {},
+    onError: (error: string) => void = () => {}
+  ): () => void {
+    const abortController = new AbortController();
+
+    fetch(`${API_BASE}/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        file_id: fileId,
+        message,
+        session_id: sessionId,
+        pages,
+      }),
+      signal: abortController.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No reader');
+
+        const decoder = new TextDecoder();
+        let sessionIdFromStream = sessionId || '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const text = decoder.decode(value);
+          const lines = text.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                onComplete(sessionIdFromStream);
+                return;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  // Check for session ID marker
+                  if (parsed.content.includes('[SESSION:')) {
+                    const match = parsed.content.match(/\[SESSION:([^\]]+)\]/);
+                    if (match) {
+                      sessionIdFromStream = match[1];
+                      onChunk(parsed.content.replace(/\n\n\[SESSION:[^\]]+\]/, ''));
+                    }
+                  } else {
+                    onChunk(parsed.content);
+                  }
+                }
+                if (parsed.error) {
+                  onError(parsed.error);
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+        onComplete(sessionIdFromStream);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          onError(err.message);
+        }
+      });
+
+    return () => abortController.abort();
+  },
+
+  async aiSummarize(
+    fileId: string,
+    detailLevel: 'brief' | 'detailed' | 'executive' = 'detailed',
+    pages?: number[]
+  ): Promise<AISummarizeResponse> {
+    const response = await client.post<AISummarizeResponse>('/ai/summarize', {
+      file_id: fileId,
+      detail_level: detailLevel,
+      pages,
+    });
+    return response.data;
+  },
+
+  async aiExtract(
+    fileId: string,
+    prompt: string,
+    outputFormat: 'text' | 'json' | 'table' | 'list' = 'text',
+    pages?: number[]
+  ): Promise<AIExtractResponse> {
+    const response = await client.post<AIExtractResponse>('/ai/extract', {
+      file_id: fileId,
+      prompt,
+      output_format: outputFormat,
+      pages,
+    });
+    return response.data;
+  },
+
+  async aiKeyPoints(fileId: string): Promise<AIExtractResponse> {
+    const response = await client.post<AIExtractResponse>(`/ai/quick/key-points?file_id=${fileId}`);
+    return response.data;
+  },
+
+  async aiActionItems(fileId: string): Promise<AIExtractResponse> {
+    const response = await client.post<AIExtractResponse>(`/ai/quick/action-items?file_id=${fileId}`);
+    return response.data;
+  },
+
+  async createAISession(fileId: string): Promise<{ session_id: string }> {
+    const response = await client.post('/ai/sessions', null, {
+      params: { file_id: fileId },
+    });
+    return response.data;
+  },
+
+  async clearAISession(sessionId: string): Promise<void> {
+    await client.delete(`/ai/sessions/${sessionId}`);
   },
 };
 

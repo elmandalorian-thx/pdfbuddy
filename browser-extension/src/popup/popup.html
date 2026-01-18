@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Buddy</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        <span>PDF Buddy</span>
+      </div>
+      <button id="settings-btn" class="icon-btn" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Main Actions -->
+    <main class="main">
+      <div class="section">
+        <h3 class="section-title">Capture Page</h3>
+        <div class="actions">
+          <button id="capture-full" class="action-btn primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+            <span>Full Page</span>
+          </button>
+          <button id="capture-visible" class="action-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            <span>Visible Area</span>
+          </button>
+          <button id="capture-selection" class="action-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 3h4M15 3h4M3 5v4M21 5v4M3 15v4M21 15v4M5 21h4M15 21h4"/>
+            </svg>
+            <span>Selection</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Quick Actions</h3>
+        <div class="quick-actions">
+          <button id="save-pdf" class="quick-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Save as PDF
+          </button>
+          <button id="edit-in-buddy" class="quick-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit in PDF Buddy
+          </button>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div id="status" class="status hidden">
+        <div class="status-content">
+          <div id="status-icon" class="status-icon"></div>
+          <span id="status-text"></span>
+        </div>
+        <div id="progress-bar" class="progress-bar hidden">
+          <div id="progress" class="progress"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="settings-header">
+        <button id="back-btn" class="icon-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h3>Settings</h3>
+      </div>
+      <div class="settings-content">
+        <div class="setting-item">
+          <label for="pdf-buddy-url">PDF Buddy URL</label>
+          <input type="url" id="pdf-buddy-url" placeholder="http://localhost:5173">
+        </div>
+        <div class="setting-item">
+          <label for="default-action">Default Action</label>
+          <select id="default-action">
+            <option value="download">Download PDF</option>
+            <option value="edit">Open in PDF Buddy</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label for="paper-size">Paper Size</label>
+          <select id="paper-size">
+            <option value="auto">Auto (fit content)</option>
+            <option value="letter">Letter (8.5" x 11")</option>
+            <option value="a4">A4 (210mm x 297mm)</option>
+            <option value="legal">Legal (8.5" x 14")</option>
+          </select>
+        </div>
+        <div class="setting-item checkbox">
+          <input type="checkbox" id="include-background" checked>
+          <label for="include-background">Include background colors</label>
+        </div>
+        <div class="setting-item checkbox">
+          <input type="checkbox" id="include-images" checked>
+          <label for="include-images">Include images</label>
+        </div>
+        <button id="save-settings" class="action-btn primary full-width">
+          Save Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <a href="https://pdfbuddy.app" target="_blank" rel="noopener">Open PDF Buddy</a>
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

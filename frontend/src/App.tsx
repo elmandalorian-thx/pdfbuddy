@@ -14,6 +14,8 @@ import {
   Layers,
   ScanText,
   PenTool,
+  Command,
+  Sparkles,
 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/pdf/FileUpload';
@@ -26,11 +28,14 @@ import { KeyboardShortcutsHelp } from '@/components/pdf/KeyboardShortcutsHelp';
 import { BatchProcessor } from '@/components/pdf/BatchProcessor';
 import { OCRDialog } from '@/components/pdf/OCRDialog';
 import { SignatureDialog } from '@/components/pdf/SignatureDialog';
+import { CommandPalette } from '@/components/smart-commands/CommandPalette';
+import { AIAssistantPanel } from '@/components/ai';
 import { Progress } from '@/components/ui/progress';
 import { usePDFStore } from '@/store/pdfStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useTouchGestures } from '@/hooks/useTouchGestures';
 import { useTheme } from '@/hooks/useTheme';
+import { useSmartCommands } from '@/hooks/useSmartCommands';
 import { Button } from '@/components/ui/button';
 import { api } from '@/api/client';
 import { cn, isValidPDFType } from '@/lib/utils';
@@ -48,6 +53,32 @@ function App() {
   const [showBatchProcessor, setShowBatchProcessor] = useState(false);
   const [showOCRDialog, setShowOCRDialog] = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+
+  // Smart Commands
+  const smartCommands = useSmartCommands({
+    fileId: document?.fileId || null,
+    selectedPages: Array.from(usePDFStore.getState().selectedPages),
+    onSuccess: async () => {
+      // Refresh document after successful command
+      if (document) {
+        try {
+          const info = await api.getFileInfo(document.fileId);
+          loadDocument(document.fileId, {
+            original_name: document.originalName,
+            num_pages: info.num_pages,
+            page_sizes: info.page_sizes,
+            thumbnail_urls: document.pages.map((_, i) => api.getThumbnailUrl(document.fileId, i + 1)),
+          });
+        } catch {
+          // Silent fail, document will refresh on next action
+        }
+      }
+    },
+    onError: (error) => {
+      setError(error);
+    },
+  });
 
   // Upload progress
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -149,7 +180,12 @@ function App() {
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    enabled: !annotatingPage && !showMetadataEditor && !showFormFiller,
+    enabled: !annotatingPage && !showMetadataEditor && !showFormFiller && !smartCommands.isOpen,
+    onCommandPalette: () => {
+      if (document) {
+        smartCommands.open();
+      }
+    },
     onAnnotate: () => {
       const { selectedPages } = usePDFStore.getState();
       if (selectedPages.size > 0) {
@@ -258,6 +294,28 @@ function App() {
             <div className="flex items-center gap-1">
               {document && (
                 <>
+                  {/* Smart Commands Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => smartCommands.open()}
+                    title="Smart Commands (⌘K)"
+                    className="touch-target"
+                  >
+                    <Command className="w-5 h-5" />
+                  </Button>
+
+                  {/* AI Assistant Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowAIAssistant(true)}
+                    title="AI Assistant"
+                    className="touch-target"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </Button>
+
                   {/* OCR Button */}
                   <Button
                     variant="ghost"
@@ -486,6 +544,34 @@ function App() {
         <SignatureDialog
           open={showSignatureDialog}
           onOpenChange={setShowSignatureDialog}
+        />
+
+        {/* AI Assistant Panel */}
+        <AIAssistantPanel
+          isOpen={showAIAssistant}
+          onClose={() => setShowAIAssistant(false)}
+          fileId={document?.fileId || null}
+          fileName={document?.originalName}
+        />
+
+        {/* Smart Commands Palette */}
+        <CommandPalette
+          isOpen={smartCommands.isOpen}
+          onClose={smartCommands.close}
+          state={smartCommands.state}
+          input={smartCommands.input}
+          onInputChange={smartCommands.setInput}
+          onSubmit={smartCommands.parseCommand}
+          onExecute={smartCommands.executeCommand}
+          onConfirm={smartCommands.confirmCommand}
+          onCancel={smartCommands.cancelConfirm}
+          onReset={smartCommands.reset}
+          parsedCommand={smartCommands.parsedCommand}
+          suggestions={smartCommands.suggestions}
+          onSelectSuggestion={smartCommands.selectSuggestion}
+          error={smartCommands.error}
+          isLoading={smartCommands.isLoading}
+          disabled={!document}
         />
 
         {/* Footer - only on landing */}
