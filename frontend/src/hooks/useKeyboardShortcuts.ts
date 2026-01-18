@@ -7,10 +7,11 @@ interface KeyboardShortcutsOptions {
   onDelete?: () => void;
   onRotate?: () => void;
   onAnnotate?: () => void;
+  onCommandPalette?: () => void;
 }
 
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
-  const { enabled = true, onDelete, onRotate, onAnnotate } = options;
+  const { enabled = true, onDelete, onRotate, onAnnotate, onCommandPalette } = options;
 
   const {
     document,
@@ -42,6 +43,15 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
 
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Ctrl/Cmd + K - Command Palette
+      if (modKey && e.key === 'k') {
+        e.preventDefault();
+        if (onCommandPalette) {
+          onCommandPalette();
+        }
+        return;
+      }
 
       // Ctrl/Cmd + Z - Undo
       if (modKey && e.key === 'z' && !e.shiftKey) {
@@ -194,6 +204,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       onDelete,
       onRotate,
       onAnnotate,
+      onCommandPalette,
     ]
   );
 
@@ -207,6 +218,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
 
 // Keyboard shortcuts help data
 export const KEYBOARD_SHORTCUTS = [
+  { keys: ['Ctrl', 'K'], mac: ['⌘', 'K'], description: 'Open command palette' },
   { keys: ['Ctrl', 'Z'], mac: ['⌘', 'Z'], description: 'Undo' },
   { keys: ['Ctrl', 'Shift', 'Z'], mac: ['⌘', 'Shift', 'Z'], description: 'Redo' },
   { keys: ['Ctrl', 'A'], mac: ['⌘', 'A'], description: 'Select all pages' },

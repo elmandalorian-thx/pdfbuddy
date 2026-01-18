@@ -4,6 +4,10 @@ import type {
   OperationResponse,
   SplitResponse,
   ExportQuality,
+  ParsedCommandResponse,
+  ExecuteCommandResponse,
+  CommandSuggestion,
+  CommandCapabilities,
 } from '@/types';
 
 const API_BASE = '/api';
@@ -514,6 +518,53 @@ export const api = {
     const response = await client.post('/batch/download-zip', {
       file_ids: fileIds,
     });
+    return response.data;
+  },
+
+  // ==========================================================================
+  // Smart Commands
+  // ==========================================================================
+
+  async parseSmartCommand(
+    command: string,
+    fileId: string,
+    selectedPages?: number[]
+  ): Promise<ParsedCommandResponse> {
+    const response = await client.post<ParsedCommandResponse>('/smart-command/parse', {
+      command,
+      file_id: fileId,
+      selected_pages: selectedPages,
+    });
+    return response.data;
+  },
+
+  async executeSmartCommand(
+    fileId: string,
+    intent: string,
+    parameters: Record<string, unknown>,
+    confirmed: boolean = true
+  ): Promise<ExecuteCommandResponse> {
+    const response = await client.post<ExecuteCommandResponse>('/smart-command/execute', {
+      file_id: fileId,
+      intent,
+      parameters,
+      confirmed,
+    });
+    return response.data;
+  },
+
+  async getCommandSuggestions(prefix?: string): Promise<{
+    suggestions: CommandSuggestion[];
+    recent: string[];
+  }> {
+    const response = await client.get('/smart-command/suggestions', {
+      params: { prefix },
+    });
+    return response.data;
+  },
+
+  async getCommandCapabilities(): Promise<CommandCapabilities> {
+    const response = await client.get<CommandCapabilities>('/smart-command/capabilities');
     return response.data;
   },
 };

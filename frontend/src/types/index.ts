@@ -102,3 +102,36 @@ export interface UndoAction {
   previousState: unknown;
   description: string;
 }
+
+// Smart Commands Types
+export interface ParsedCommandResponse {
+  success: boolean;
+  intent: string;
+  parameters: Record<string, unknown>;
+  confidence: number;
+  action_preview: string;
+  api_endpoint: string;
+  api_payload: Record<string, unknown>;
+  is_destructive: boolean;
+  requires_confirmation: boolean;
+  warnings: string[];
+  suggestions: string[];
+}
+
+export interface ExecuteCommandResponse {
+  success: boolean;
+  message: string;
+  result?: Record<string, unknown>;
+}
+
+export interface CommandSuggestion {
+  command: string;
+  description: string;
+  intent: string;
+  category: string;
+}
+
+export interface CommandCapabilities {
+  categories: Record<string, CommandSuggestion[]>;
+  total_commands: number;
+}
