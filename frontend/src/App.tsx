@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FileText,
   AlertCircle,
@@ -10,6 +10,7 @@ import {
   FileInput,
   Loader2,
   CheckCircle,
+  Plus,
 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/pdf/FileUpload';
@@ -26,10 +27,10 @@ import { useTouchGestures } from '@/hooks/useTouchGestures';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/button';
 import { api } from '@/api/client';
-import { cn } from '@/lib/utils';
+import { cn, isValidPDFType } from '@/lib/utils';
 
 function App() {
-  const { document, error, setError, clearDocument, setZoom, zoom, isLoading } = usePDFStore();
+  const { document, error, setError, clearDocument, setZoom, zoom, isLoading, setLoading, loadDocument } = usePDFStore();
   const { isDark, toggleTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +45,65 @@ function App() {
 
   // Success toast
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Drag and drop for appending PDFs
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!document) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  }, [document]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsDraggingOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    if (!document) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    const pdfFiles = files.filter(isValidPDFType);
+
+    if (pdfFiles.length === 0) {
+      setError('Please drop PDF files only');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Append each PDF file sequentially
+      for (const file of pdfFiles) {
+        const response = await api.appendPDF(document.fileId, file);
+        if (response.success && response.thumbnail_urls) {
+          // Update the document with new page info
+          const info = await api.getFileInfo(document.fileId);
+          loadDocument(document.fileId, {
+            original_name: document.originalName,
+            num_pages: info.num_pages,
+            page_sizes: info.page_sizes,
+            thumbnail_urls: response.thumbnail_urls,
+          });
+        }
+      }
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to append PDF');
+    } finally {
+      setLoading(false);
+    }
+  }, [document, setLoading, setError, loadDocument]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -280,13 +340,33 @@ function App() {
         )}
 
         {/* Main content */}
-        <main className="min-h-[calc(100vh-4rem)]">
+        <main
+          className="min-h-[calc(100vh-4rem)] relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           {!document ? (
             <FileUpload onUploadComplete={handleUploadComplete} />
           ) : (
             <div className="animate-fadeIn">
               <Toolbar />
               <PageGrid onAnnotatePage={handleAnnotatePage} />
+            </div>
+          )}
+
+          {/* Drop overlay for appending PDFs */}
+          {isDraggingOver && document && (
+            <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-center border-4 border-dashed border-primary rounded-lg m-4 transition-all">
+              <div className="text-center p-8 bg-background/90 rounded-2xl shadow-2xl">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Plus className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Drop to Append</h3>
+                <p className="text-muted-foreground">
+                  Drop PDF files here to add them to the end of your document
+                </p>
+              </div>
             </div>
           )}
         </main>
