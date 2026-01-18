@@ -231,27 +231,11 @@ export function AnnotationCanvas({
       if (e.target) return;
 
       const pointer = canvas.getPointer(e.e);
-
-      // Create text annotation
-      const textAnnotation: TextAnnotation = {
-        id: generateId(),
-        type: 'text',
-        text: 'Type here...',
-        x: pointer.x,
-        y: pointer.y,
-        fontSize: toolSettings.text.fontSize,
-        fontFamily: toolSettings.text.fontFamily,
-        color: toolSettings.text.textColor,
-        bold: toolSettings.text.bold,
-        italic: toolSettings.text.italic,
-        underline: toolSettings.text.underline,
-        pageNumber,
-      };
-
-      addAnnotation(textAnnotation);
+      const newAnnotationId = generateId();
 
       // Create the fabric text object for immediate editing
-      const text = new fabric.IText(textAnnotation.text, {
+      // Don't add to annotation state yet - wait until text editing is complete
+      const text = new fabric.IText('', {
         left: pointer.x,
         top: pointer.y,
         fontSize: toolSettings.text.fontSize,
@@ -262,13 +246,24 @@ export function AnnotationCanvas({
         underline: toolSettings.text.underline,
         selectable: true,
         editable: true,
-        data: { annotationId: textAnnotation.id, type: 'text' },
+        data: {
+          annotationId: newAnnotationId,
+          type: 'text',
+          isNew: true, // Flag to indicate this is a new annotation not yet saved
+          settings: {
+            fontSize: toolSettings.text.fontSize,
+            fontFamily: toolSettings.text.fontFamily,
+            color: toolSettings.text.textColor,
+            bold: toolSettings.text.bold,
+            italic: toolSettings.text.italic,
+            underline: toolSettings.text.underline,
+          }
+        },
       });
 
       canvas.add(text);
       canvas.setActiveObject(text);
       text.enterEditing();
-      text.selectAll();
       canvas.renderAll();
     };
 
@@ -279,9 +274,9 @@ export function AnnotationCanvas({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.off('mouse:down', handleMouseDown as any);
     };
-  }, [currentTool, toolSettings.text, pageNumber, addAnnotation]);
+  }, [currentTool, toolSettings.text, pageNumber]);
 
-  // Handle text editing completion - update annotation
+  // Handle text editing completion - update or create annotation
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -291,14 +286,39 @@ export function AnnotationCanvas({
       if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
 
       const annotationId = target.data.annotationId;
+      const textContent = target.text || '';
+
+      // Don't save empty text
+      if (!textContent.trim()) return;
+
       const existingAnnotations = usePDFStore.getState().annotations[pageNumber] || [];
       const existingAnnotation = existingAnnotations.find(a => a.id === annotationId);
 
-      if (existingAnnotation && existingAnnotation.type === 'text') {
-        // Update the annotation with new text
+      if (target.data.isNew && !existingAnnotation) {
+        // This is a new annotation, create it
+        const settings = target.data.settings || {};
+        const newAnnotation: TextAnnotation = {
+          id: annotationId,
+          type: 'text',
+          text: textContent,
+          x: target.left || 0,
+          y: target.top || 0,
+          fontSize: settings.fontSize || 16,
+          fontFamily: settings.fontFamily || 'Arial',
+          color: settings.color || '#000000',
+          bold: settings.bold || false,
+          italic: settings.italic || false,
+          underline: settings.underline || false,
+          pageNumber,
+        };
+        addAnnotation(newAnnotation);
+        // Remove the isNew flag
+        target.data.isNew = false;
+      } else if (existingAnnotation && existingAnnotation.type === 'text') {
+        // Update the existing annotation with new text
         const updatedAnnotation: TextAnnotation = {
           ...(existingAnnotation as TextAnnotation),
-          text: target.text || '',
+          text: textContent,
           x: target.left || 0,
           y: target.top || 0,
         };
@@ -309,16 +329,40 @@ export function AnnotationCanvas({
       }
     };
 
+    // Handle when text editing exits
+    const handleEditingExited = (e: fabric.IEvent & { target?: fabric.IText }) => {
+      const target = e.target;
+      if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
+
+      const textContent = target.text || '';
+
+      // If exiting edit mode with no text, remove the object
+      if (!textContent.trim()) {
+        canvas.remove(target);
+        canvas.renderAll();
+        return;
+      }
+
+      // Save the annotation if it's new
+      if (target.data.isNew) {
+        handleTextChanged(e);
+      }
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on('text:changed', handleTextChanged as any);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on('object:modified', handleTextChanged as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('text:editing:exited', handleEditingExited as any);
 
     return () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.off('text:changed', handleTextChanged as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.off('object:modified', handleTextChanged as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('text:editing:exited', handleEditingExited as any);
     };
   }, [pageNumber, addAnnotation, removeAnnotation]);
 
