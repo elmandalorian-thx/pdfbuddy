@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { fabric } from 'fabric';
 import { usePDFStore } from '@/store/pdfStore';
 import { generateId } from '@/lib/utils';
-import type { Annotation } from '@/types';
+import type { Annotation, TextAnnotation, DrawAnnotation } from '@/types';
 
 interface AnnotationCanvasProps {
   pageNumber: number;
@@ -89,42 +89,75 @@ export function AnnotationCanvas({
       canvas.freeDrawingBrush = brush;
     }
 
+    // Set cursor for text tool
+    if (currentTool === 'text') {
+      canvas.defaultCursor = 'text';
+      canvas.hoverCursor = 'text';
+    } else if (currentTool === 'eraser') {
+      canvas.defaultCursor = 'crosshair';
+      canvas.hoverCursor = 'crosshair';
+    } else {
+      canvas.defaultCursor = 'default';
+      canvas.hoverCursor = 'move';
+    }
+
     canvas.renderAll();
   }, [currentTool, toolSettings]);
 
-  // Load existing annotations
+  // Load existing annotations (both paths and text)
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Clear existing paths (keep background)
+    // Clear existing objects (keep background)
     const objects = canvas.getObjects();
     objects.forEach((obj) => {
-      if (obj.type === 'path') {
+      if (obj.type === 'path' || obj.type === 'i-text' || obj.type === 'textbox') {
         canvas.remove(obj);
       }
     });
 
     // Add saved annotations
     pageAnnotations.forEach((annotation) => {
-      if (annotation.points.length < 2) return;
+      if (annotation.type === 'text') {
+        // Text annotation
+        const textAnnotation = annotation as TextAnnotation;
+        const text = new fabric.IText(textAnnotation.text, {
+          left: textAnnotation.x,
+          top: textAnnotation.y,
+          fontSize: textAnnotation.fontSize,
+          fontFamily: textAnnotation.fontFamily,
+          fill: textAnnotation.color,
+          fontWeight: textAnnotation.bold ? 'bold' : 'normal',
+          fontStyle: textAnnotation.italic ? 'italic' : 'normal',
+          underline: textAnnotation.underline,
+          selectable: currentTool === 'select',
+          editable: currentTool === 'select',
+          data: { annotationId: annotation.id, type: 'text' },
+        });
+        canvas.add(text);
+      } else {
+        // Draw annotation (pen/highlighter)
+        const drawAnnotation = annotation as DrawAnnotation;
+        if (drawAnnotation.points.length < 2) return;
 
-      const pathData = annotation.points
-        .map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`))
-        .join(' ');
+        const pathData = drawAnnotation.points
+          .map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`))
+          .join(' ');
 
-      const path = new fabric.Path(pathData, {
-        stroke: annotation.color,
-        strokeWidth: annotation.width,
-        fill: '',
-        strokeLineCap: 'round',
-        strokeLineJoin: 'round',
-        opacity: annotation.opacity,
-        selectable: currentTool === 'select',
-        data: { annotationId: annotation.id },
-      });
+        const path = new fabric.Path(pathData, {
+          stroke: drawAnnotation.color,
+          strokeWidth: drawAnnotation.width,
+          fill: '',
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          opacity: drawAnnotation.opacity,
+          selectable: currentTool === 'select',
+          data: { annotationId: annotation.id, type: 'draw' },
+        });
 
-      canvas.add(path);
+        canvas.add(path);
+      }
     });
 
     canvas.renderAll();
@@ -156,7 +189,7 @@ export function AnnotationCanvas({
 
       if (points.length < 2) return;
 
-      const annotation: Annotation = {
+      const annotation: DrawAnnotation = {
         id: generateId(),
         type: currentTool === 'highlighter' ? 'highlighter' : 'pen',
         points,
@@ -188,14 +221,115 @@ export function AnnotationCanvas({
     };
   }, [currentTool, toolSettings, pageNumber, addAnnotation]);
 
-  // Handle eraser
+  // Handle text tool clicks
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || currentTool !== 'text') return;
+
+    const handleMouseDown = (e: fabric.IEvent<MouseEvent>) => {
+      // Don't create new text if clicking on existing object
+      if (e.target) return;
+
+      const pointer = canvas.getPointer(e.e);
+
+      // Create text annotation
+      const textAnnotation: TextAnnotation = {
+        id: generateId(),
+        type: 'text',
+        text: 'Type here...',
+        x: pointer.x,
+        y: pointer.y,
+        fontSize: toolSettings.text.fontSize,
+        fontFamily: toolSettings.text.fontFamily,
+        color: toolSettings.text.textColor,
+        bold: toolSettings.text.bold,
+        italic: toolSettings.text.italic,
+        underline: toolSettings.text.underline,
+        pageNumber,
+      };
+
+      addAnnotation(textAnnotation);
+
+      // Create the fabric text object for immediate editing
+      const text = new fabric.IText(textAnnotation.text, {
+        left: pointer.x,
+        top: pointer.y,
+        fontSize: toolSettings.text.fontSize,
+        fontFamily: toolSettings.text.fontFamily,
+        fill: toolSettings.text.textColor,
+        fontWeight: toolSettings.text.bold ? 'bold' : 'normal',
+        fontStyle: toolSettings.text.italic ? 'italic' : 'normal',
+        underline: toolSettings.text.underline,
+        selectable: true,
+        editable: true,
+        data: { annotationId: textAnnotation.id, type: 'text' },
+      });
+
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      text.selectAll();
+      canvas.renderAll();
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('mouse:down', handleMouseDown as any);
+
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('mouse:down', handleMouseDown as any);
+    };
+  }, [currentTool, toolSettings.text, pageNumber, addAnnotation]);
+
+  // Handle text editing completion - update annotation
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const handleTextChanged = (e: fabric.IEvent & { target?: fabric.IText }) => {
+      const target = e.target;
+      if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
+
+      const annotationId = target.data.annotationId;
+      const existingAnnotations = usePDFStore.getState().annotations[pageNumber] || [];
+      const existingAnnotation = existingAnnotations.find(a => a.id === annotationId);
+
+      if (existingAnnotation && existingAnnotation.type === 'text') {
+        // Update the annotation with new text
+        const updatedAnnotation: TextAnnotation = {
+          ...(existingAnnotation as TextAnnotation),
+          text: target.text || '',
+          x: target.left || 0,
+          y: target.top || 0,
+        };
+
+        // Remove old and add updated
+        removeAnnotation(pageNumber, annotationId);
+        addAnnotation(updatedAnnotation);
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('text:changed', handleTextChanged as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('object:modified', handleTextChanged as any);
+
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('text:changed', handleTextChanged as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('object:modified', handleTextChanged as any);
+    };
+  }, [pageNumber, addAnnotation, removeAnnotation]);
+
+  // Handle eraser for both paths and text
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || currentTool !== 'eraser') return;
 
     const handleMouseDown = (e: fabric.IEvent<MouseEvent>) => {
       const target = e.target;
-      if (target && target.type === 'path' && target.data?.annotationId) {
+      if (target && target.data?.annotationId) {
         removeAnnotation(pageNumber, target.data.annotationId);
       }
     };
@@ -203,15 +337,9 @@ export function AnnotationCanvas({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on('mouse:down', handleMouseDown as any);
 
-    // Change cursor for eraser
-    canvas.defaultCursor = 'crosshair';
-    canvas.hoverCursor = 'crosshair';
-
     return () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.off('mouse:down', handleMouseDown as any);
-      canvas.defaultCursor = 'default';
-      canvas.hoverCursor = 'move';
     };
   }, [currentTool, pageNumber, removeAnnotation]);
 

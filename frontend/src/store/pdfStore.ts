@@ -56,7 +56,8 @@ interface PDFState {
 
   // Annotations
   setCurrentTool: (tool: ToolType) => void;
-  updateToolSettings: (settings: Partial<ToolSettings>) => void;
+  updateToolSettings: (settings: Partial<Omit<ToolSettings, 'text'>>) => void;
+  updateTextSettings: (settings: Partial<ToolSettings['text']>) => void;
   addAnnotation: (annotation: Annotation) => void;
   removeAnnotation: (pageNumber: number, annotationId: string) => void;
   clearPageAnnotations: (pageNumber: number) => void;
@@ -86,6 +87,14 @@ export const usePDFStore = create<PDFState>((set, get) => ({
     highlighterColor: '#FFFF00',
     highlighterWidth: 20,
     highlighterOpacity: 0.4,
+    text: {
+      fontSize: 16,
+      fontFamily: 'Arial',
+      textColor: '#000000',
+      bold: false,
+      italic: false,
+      underline: false,
+    },
   },
   undoStack: [],
   redoStack: [],
@@ -254,6 +263,18 @@ export const usePDFStore = create<PDFState>((set, get) => ({
       toolSettings: {
         ...get().toolSettings,
         ...settings,
+      },
+    });
+  },
+
+  updateTextSettings: (settings) => {
+    set({
+      toolSettings: {
+        ...get().toolSettings,
+        text: {
+          ...get().toolSettings.text,
+          ...settings,
+        },
       },
     });
   },
