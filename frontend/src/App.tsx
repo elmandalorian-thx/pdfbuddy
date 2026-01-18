@@ -48,26 +48,59 @@ function App() {
 
   // Drag and drop for appending PDFs
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    if (!document) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingOver(true);
+    }
+  }, [document]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!document) return;
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggingOver(true);
   }, [document]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set to false if we're leaving the main container
-    if (e.currentTarget === e.target) {
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
       setIsDraggingOver(false);
     }
+  }, []);
+
+  // Reset drag state when drag ends (user cancels or drops outside)
+  useEffect(() => {
+    const handleDragEnd = () => {
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      // Reset on any drop (even outside our drop zone)
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
+    };
+
+    window.addEventListener('dragend', handleDragEnd);
+    window.addEventListener('drop', handleWindowDrop);
+
+    return () => {
+      window.removeEventListener('dragend', handleDragEnd);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
   }, []);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounter.current = 0;
     setIsDraggingOver(false);
 
     if (!document) return;
@@ -342,6 +375,7 @@ function App() {
         {/* Main content */}
         <main
           className="min-h-[calc(100vh-4rem)] relative"
+          onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}

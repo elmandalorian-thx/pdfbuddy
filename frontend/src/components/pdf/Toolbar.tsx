@@ -16,6 +16,7 @@ import {
   Square,
   Plus,
   Loader2,
+  FilePlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ export function Toolbar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const mergeInputRef = useRef<HTMLInputElement>(null);
+  const addPdfInputRef = useRef<HTMLInputElement>(null);
 
   const [showSplitDialog, setShowSplitDialog] = useState(false);
   const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
@@ -139,6 +141,33 @@ export function Toolbar() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add page');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add PDF pages to current document
+  const handleAddPdf = async (files: FileList) => {
+    if (!document || files.length === 0) return;
+
+    setLoading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (file.type === 'application/pdf') {
+          const response = await api.appendPDF(document.fileId, file);
+          if (response.success && response.thumbnail_urls) {
+            const info = await api.getFileInfo(document.fileId);
+            usePDFStore.getState().loadDocument(document.fileId, {
+              original_name: document.originalName,
+              num_pages: info.num_pages,
+              page_sizes: info.page_sizes,
+              thumbnail_urls: response.thumbnail_urls,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add PDF');
     } finally {
       setLoading(false);
     }
@@ -390,6 +419,27 @@ export function Toolbar() {
 
           {/* Add content */}
           <div className="flex items-center gap-1 border-r pr-2">
+            <input
+              ref={addPdfInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) =>
+                e.target.files && handleAddPdf(e.target.files)
+              }
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => addPdfInputRef.current?.click()}
+              disabled={isLoading}
+              title="Add PDF pages"
+            >
+              <FilePlus className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+
             <input
               ref={imageInputRef}
               type="file"
