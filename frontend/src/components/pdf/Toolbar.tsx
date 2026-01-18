@@ -579,14 +579,54 @@ export function Toolbar() {
           </div>
         </div>
 
-        {/* Selection info */}
-        {hasSelection && (
-          <div className="px-3 py-1 text-sm text-muted-foreground bg-muted/50">
-            {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''}{' '}
-            selected
+        </div>
+
+      {/* Floating Action Bar - appears when pages are selected */}
+      {hasSelection && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slideUp">
+          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30">
+            <span className="font-semibold">
+              {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''} selected
+            </span>
+            <div className="w-px h-6 bg-primary-foreground/30" />
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRotateSelected}
+                disabled={isLoading}
+                className="text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+                title="Rotate selected pages"
+              >
+                <RotateCw className="w-4 h-4 mr-1" />
+                Rotate
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteSelected}
+                disabled={isLoading}
+                className="text-primary-foreground hover:bg-destructive hover:text-destructive-foreground"
+                title="Delete selected pages"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete
+              </Button>
+            </div>
+            <div className="w-px h-6 bg-primary-foreground/30" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              className="text-primary-foreground/70 hover:bg-primary-foreground/20 hover:text-primary-foreground"
+              title="Clear selection"
+            >
+              <Square className="w-4 h-4" />
+            </Button>
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Split Dialog */}
       <Dialog open={showSplitDialog} onOpenChange={setShowSplitDialog}>

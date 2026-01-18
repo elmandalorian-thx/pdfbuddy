@@ -36,6 +36,7 @@ export function PageGrid({ onAnnotatePage }: PageGridProps) {
     updateThumbnails,
     setLoading,
     setError,
+    isLoading,
   } = usePDFStore();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export function PageGrid({ onAnnotatePage }: PageGridProps) {
 
   const handleRotate = useCallback(
     async (pageNumber: number) => {
-      if (!document) return;
+      if (!document || isLoading) return;
 
       setLoading(true);
       try {
@@ -83,12 +84,12 @@ export function PageGrid({ onAnnotatePage }: PageGridProps) {
         setLoading(false);
       }
     },
-    [document, setLoading, setError, updateThumbnails]
+    [document, isLoading, setLoading, setError, updateThumbnails]
   );
 
   const handleDelete = useCallback(
     async (pageNumber: number) => {
-      if (!document) return;
+      if (!document || isLoading) return;
       if (document.numPages <= 1) {
         setError('Cannot delete the only page');
         return;
@@ -113,7 +114,7 @@ export function PageGrid({ onAnnotatePage }: PageGridProps) {
         setLoading(false);
       }
     },
-    [document, setLoading, setError]
+    [document, isLoading, setLoading, setError]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -182,6 +183,7 @@ export function PageGrid({ onAnnotatePage }: PageGridProps) {
               page={page}
               isSelected={selectedPages.has(page.pageNumber)}
               isDragging={activeId === page.id}
+              isLoading={isLoading}
               onSelect={handleSelect}
               onRotate={handleRotate}
               onDelete={handleDelete}
