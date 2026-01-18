@@ -11,6 +11,9 @@ import {
   Loader2,
   CheckCircle,
   Plus,
+  Layers,
+  ScanText,
+  PenTool,
 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/pdf/FileUpload';
@@ -20,6 +23,9 @@ import { AnnotationEditor } from '@/components/annotations/AnnotationEditor';
 import { MetadataEditor } from '@/components/pdf/MetadataEditor';
 import { FormFiller } from '@/components/pdf/FormFiller';
 import { KeyboardShortcutsHelp } from '@/components/pdf/KeyboardShortcutsHelp';
+import { BatchProcessor } from '@/components/pdf/BatchProcessor';
+import { OCRDialog } from '@/components/pdf/OCRDialog';
+import { SignatureDialog } from '@/components/pdf/SignatureDialog';
 import { Progress } from '@/components/ui/progress';
 import { usePDFStore } from '@/store/pdfStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -39,6 +45,9 @@ function App() {
   const [showMetadataEditor, setShowMetadataEditor] = useState(false);
   const [showFormFiller, setShowFormFiller] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showBatchProcessor, setShowBatchProcessor] = useState(false);
+  const [showOCRDialog, setShowOCRDialog] = useState(false);
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
 
   // Upload progress
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -249,6 +258,28 @@ function App() {
             <div className="flex items-center gap-1">
               {document && (
                 <>
+                  {/* OCR Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowOCRDialog(true)}
+                    title="OCR - Extract Text from Scans"
+                    className="touch-target"
+                  >
+                    <ScanText className="w-5 h-5" />
+                  </Button>
+
+                  {/* Signature Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSignatureDialog(true)}
+                    title="Add Digital Signature"
+                    className="touch-target"
+                  >
+                    <PenTool className="w-5 h-5" />
+                  </Button>
+
                   {/* Form Filler Button */}
                   <Button
                     variant="ghost"
@@ -272,6 +303,17 @@ function App() {
                   </Button>
                 </>
               )}
+
+              {/* Batch Processing Button - Available without document */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowBatchProcessor(true)}
+                title="Batch Processing"
+                className="touch-target"
+              >
+                <Layers className="w-5 h-5" />
+              </Button>
 
               {/* Keyboard Shortcuts Button */}
               <Button
@@ -426,6 +468,24 @@ function App() {
         <KeyboardShortcutsHelp
           open={showKeyboardHelp}
           onOpenChange={setShowKeyboardHelp}
+        />
+
+        {/* Batch Processor Dialog */}
+        <BatchProcessor
+          open={showBatchProcessor}
+          onOpenChange={setShowBatchProcessor}
+        />
+
+        {/* OCR Dialog */}
+        <OCRDialog
+          open={showOCRDialog}
+          onOpenChange={setShowOCRDialog}
+        />
+
+        {/* Signature Dialog */}
+        <SignatureDialog
+          open={showSignatureDialog}
+          onOpenChange={setShowSignatureDialog}
         />
 
         {/* Footer - only on landing */}

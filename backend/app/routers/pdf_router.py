@@ -2,12 +2,15 @@ import io
 import json
 from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.services.pdf_service import pdf_service
 from app.services.file_service import file_service
+from app.services.signature_service import signature_service
+from app.services.ocr_service import ocr_service
+from app.services.batch_service import batch_service
 from app.config import MAX_FILE_SIZE, ALLOWED_PDF_TYPES, ALLOWED_IMAGE_TYPES, TEMP_DIR, PROCESSED_DIR
 
 router = APIRouter(prefix="/api", tags=["pdf"])
@@ -927,3 +930,427 @@ async def get_compare_image(file_id: str, type: str, page_num: int):
         raise HTTPException(status_code=404, detail="Comparison image not found")
 
     return FileResponse(image_path, media_type="image/png")
+
+
+# =============================================================================
+# Health Check Endpoint (for E2E tests)
+# =============================================================================
+
+@router.get("/health")
+async def api_health():
+    """API health check endpoint."""
+    return {
+        "status": "healthy",
+        "service": "pdf-buddy-api",
+        "features": {
+            "signatures": signature_service.is_available(),
+            "ocr": ocr_service.is_available()
+        }
+    }
+
+
+# =============================================================================
+# Digital Signature Endpoints
+# =============================================================================
+
+class SignatureRequest(BaseModel):
+    file_id: str
+    page_num: int
+    x: float
+    y: float
+    name: str = ""
+    reason: str = ""
+    location: str = ""
+    signature_data: Optional[dict] = None
+
+
+@router.get("/signature/status")
+async def get_signature_status():
+    """Check if digital signature functionality is available."""
+    return {
+        "available": signature_service.is_available(),
+        "message": "Digital signature functionality is available" if signature_service.is_available()
+                   else "Digital signature libraries not installed"
+    }
+
+
+@router.get("/signature/info/{file_id}")
+async def get_signature_info(file_id: str):
+    """Get information about existing signatures in a PDF."""
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+
+    try:
+        sig_info = signature_service.get_signature_info(file_path)
+        return {
+            "success": True,
+            "file_id": file_id,
+            **sig_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/signature/add")
+async def add_signature(request: SignatureRequest):
+    """Add a visual signature to a PDF."""
+    file_info = file_service.get_file_info(request.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+    output_path = PROCESSED_DIR / request.file_id / "signed.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        signature_service.add_visual_signature_to_pdf(
+            file_path,
+            output_path,
+            page_num=request.page_num,
+            x=request.x,
+            y=request.y,
+            name=request.name,
+            reason=request.reason,
+            location=request.location,
+            signature_data=request.signature_data
+        )
+
+        file_service.update_file_path(request.file_id, output_path)
+
+        # Regenerate thumbnails
+        pdf_info = pdf_service.get_pdf_info(output_path)
+        pdf_service.generate_thumbnails(output_path, request.file_id)
+        thumbnail_urls = [f"/api/thumbnail/{request.file_id}/{i+1}" for i in range(pdf_info["num_pages"])]
+
+        return {
+            "success": True,
+            "file_id": request.file_id,
+            "message": "Signature added successfully",
+            "thumbnail_urls": thumbnail_urls
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# OCR Endpoints
+# =============================================================================
+
+class OCRRequest(BaseModel):
+    file_id: str
+    language: str = "eng"
+    pages: Optional[List[int]] = None
+
+
+class OCRSearchableRequest(BaseModel):
+    file_id: str
+    language: str = "eng"
+    pages: Optional[List[int]] = None
+    dpi: int = 300
+
+
+@router.get("/ocr/status")
+async def get_ocr_status():
+    """Check if OCR functionality is available."""
+    return {
+        "available": ocr_service.is_available(),
+        "message": "OCR functionality is available" if ocr_service.is_available()
+                   else "Tesseract OCR not installed",
+        "supported_languages": ocr_service.get_supported_languages() if ocr_service.is_available() else {}
+    }
+
+
+@router.get("/ocr/languages")
+async def get_ocr_languages():
+    """Get list of supported OCR languages."""
+    return {
+        "languages": ocr_service.get_supported_languages()
+    }
+
+
+@router.post("/ocr/extract")
+async def ocr_extract_text(request: OCRRequest):
+    """Extract text from a scanned PDF using OCR."""
+    if not ocr_service.is_available():
+        raise HTTPException(status_code=503, detail="OCR functionality is not available")
+
+    file_info = file_service.get_file_info(request.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+
+    try:
+        text_by_page = ocr_service.extract_text_from_pdf(
+            file_path,
+            language=request.language,
+            pages=request.pages
+        )
+
+        return {
+            "success": True,
+            "file_id": request.file_id,
+            "text": text_by_page,
+            "language": request.language
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/ocr/searchable")
+async def ocr_create_searchable(request: OCRSearchableRequest):
+    """Create a searchable PDF from a scanned document."""
+    if not ocr_service.is_available():
+        raise HTTPException(status_code=503, detail="OCR functionality is not available")
+
+    file_info = file_service.get_file_info(request.file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+    output_path = PROCESSED_DIR / request.file_id / "searchable.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        ocr_service.create_searchable_pdf(
+            file_path,
+            output_path,
+            language=request.language,
+            pages=request.pages,
+            dpi=request.dpi
+        )
+
+        file_service.update_file_path(request.file_id, output_path)
+
+        # Regenerate thumbnails
+        pdf_info = pdf_service.get_pdf_info(output_path)
+        pdf_service.generate_thumbnails(output_path, request.file_id)
+        thumbnail_urls = [f"/api/thumbnail/{request.file_id}/{i+1}" for i in range(pdf_info["num_pages"])]
+
+        return {
+            "success": True,
+            "file_id": request.file_id,
+            "message": "Searchable PDF created successfully",
+            "thumbnail_urls": thumbnail_urls
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ocr/data/{file_id}/{page_num}")
+async def ocr_get_data(file_id: str, page_num: int, language: str = "eng"):
+    """Get detailed OCR data including word bounding boxes for a page."""
+    if not ocr_service.is_available():
+        raise HTTPException(status_code=503, detail="OCR functionality is not available")
+
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = Path(file_info["path"])
+
+    try:
+        ocr_data = ocr_service.get_ocr_data(file_path, page_num, language)
+        return {
+            "success": True,
+            "file_id": file_id,
+            **ocr_data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Batch Processing Endpoints
+# =============================================================================
+
+class BatchWatermarkRequest(BaseModel):
+    file_ids: List[str]
+    text: str
+    opacity: float = 0.3
+    rotation: int = 45
+
+
+class BatchEncryptRequest(BaseModel):
+    file_ids: List[str]
+    password: str
+
+
+class BatchRotateRequest(BaseModel):
+    file_ids: List[str]
+    rotation: int  # 90, 180, or 270
+
+
+class BatchExtractTextRequest(BaseModel):
+    file_ids: List[str]
+
+
+class BatchMergeRequest(BaseModel):
+    file_ids: List[str]
+
+
+class BatchDownloadRequest(BaseModel):
+    file_ids: List[str]
+
+
+@router.get("/batch/operations")
+async def get_batch_operations():
+    """Get list of supported batch operations."""
+    return {
+        "operations": batch_service.get_supported_operations()
+    }
+
+
+@router.post("/batch/upload")
+async def batch_upload(files: List[UploadFile] = File(...)):
+    """Upload multiple files for batch processing."""
+    results = []
+    errors = []
+
+    for file in files:
+        try:
+            if file.content_type not in ALLOWED_PDF_TYPES:
+                errors.append({
+                    "filename": file.filename,
+                    "error": "Invalid file type"
+                })
+                continue
+
+            content = await file.read()
+
+            if len(content) > MAX_FILE_SIZE:
+                errors.append({
+                    "filename": file.filename,
+                    "error": "File too large"
+                })
+                continue
+
+            file_info = await file_service.save_upload(content, file.filename, file.content_type)
+            pdf_info = pdf_service.get_pdf_info(Path(file_info["path"]))
+
+            results.append({
+                "file_id": file_info["id"],
+                "original_name": file_info["original_name"],
+                "num_pages": pdf_info["num_pages"]
+            })
+        except Exception as e:
+            errors.append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+
+    return {
+        "success": len(results) > 0,
+        "uploaded": results,
+        "errors": errors,
+        "total_uploaded": len(results),
+        "total_errors": len(errors)
+    }
+
+
+@router.post("/batch/watermark")
+async def batch_watermark(request: BatchWatermarkRequest):
+    """Add watermark to multiple PDFs."""
+    try:
+        result = await batch_service.process_watermark(
+            request.file_ids,
+            request.text,
+            request.opacity,
+            request.rotation
+        )
+        return {
+            "success": True,
+            "operation": "watermark",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/encrypt")
+async def batch_encrypt(request: BatchEncryptRequest):
+    """Encrypt multiple PDFs with password."""
+    try:
+        result = await batch_service.process_encrypt(
+            request.file_ids,
+            request.password
+        )
+        return {
+            "success": True,
+            "operation": "encrypt",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/rotate")
+async def batch_rotate(request: BatchRotateRequest):
+    """Rotate all pages in multiple PDFs."""
+    if request.rotation not in [90, 180, 270]:
+        raise HTTPException(status_code=400, detail="Rotation must be 90, 180, or 270 degrees")
+
+    try:
+        result = await batch_service.process_rotate(
+            request.file_ids,
+            request.rotation
+        )
+        return {
+            "success": True,
+            "operation": "rotate",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/extract-text")
+async def batch_extract_text(request: BatchExtractTextRequest):
+    """Extract text from multiple PDFs."""
+    try:
+        result = await batch_service.process_extract_text(request.file_ids)
+        return {
+            "success": True,
+            "operation": "extract_text",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/merge")
+async def batch_merge(request: BatchMergeRequest):
+    """Merge multiple PDFs into one."""
+    if len(request.file_ids) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 files required for merge")
+
+    try:
+        result = await batch_service.process_merge(request.file_ids)
+        return {
+            "success": True,
+            "operation": "merge",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch/download-zip")
+async def batch_download_zip(request: BatchDownloadRequest):
+    """Create a ZIP file containing multiple processed PDFs."""
+    try:
+        zip_path = batch_service.create_download_zip(request.file_ids)
+
+        # Get the zip file ID from the path
+        zip_id = zip_path.parent.name
+
+        return {
+            "success": True,
+            "zip_file_id": zip_id,
+            "download_url": f"/api/download/{zip_id}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

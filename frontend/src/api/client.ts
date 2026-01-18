@@ -319,6 +319,203 @@ export const api = {
     });
     return response.data;
   },
+
+  // ==========================================================================
+  // Digital Signatures
+  // ==========================================================================
+
+  async getSignatureStatus(): Promise<{ available: boolean; message: string }> {
+    const response = await client.get('/signature/status');
+    return response.data;
+  },
+
+  async getSignatureInfo(fileId: string): Promise<{
+    success: boolean;
+    has_signatures: boolean;
+    signatures: Array<{ field_name: string; is_signed: boolean }>;
+    is_certified: boolean;
+  }> {
+    const response = await client.get(`/signature/info/${fileId}`);
+    return response.data;
+  },
+
+  async addSignature(
+    fileId: string,
+    pageNum: number,
+    x: number,
+    y: number,
+    options: {
+      name?: string;
+      reason?: string;
+      location?: string;
+      signature_data?: { points: [number, number][] };
+    } = {}
+  ): Promise<OperationResponse> {
+    const response = await client.post<OperationResponse>('/signature/add', {
+      file_id: fileId,
+      page_num: pageNum,
+      x,
+      y,
+      ...options,
+    });
+    return response.data;
+  },
+
+  // ==========================================================================
+  // OCR
+  // ==========================================================================
+
+  async getOCRStatus(): Promise<{
+    available: boolean;
+    message: string;
+    supported_languages: Record<string, string>;
+  }> {
+    const response = await client.get('/ocr/status');
+    return response.data;
+  },
+
+  async getOCRLanguages(): Promise<{ languages: Record<string, string> }> {
+    const response = await client.get('/ocr/languages');
+    return response.data;
+  },
+
+  async ocrExtractText(
+    fileId: string,
+    language: string = 'eng',
+    pages?: number[]
+  ): Promise<{
+    success: boolean;
+    text: Record<number, string>;
+    language: string;
+  }> {
+    const response = await client.post('/ocr/extract', {
+      file_id: fileId,
+      language,
+      pages,
+    });
+    return response.data;
+  },
+
+  async ocrCreateSearchable(
+    fileId: string,
+    language: string = 'eng',
+    pages?: number[],
+    dpi: number = 300
+  ): Promise<OperationResponse> {
+    const response = await client.post<OperationResponse>('/ocr/searchable', {
+      file_id: fileId,
+      language,
+      pages,
+      dpi,
+    });
+    return response.data;
+  },
+
+  // ==========================================================================
+  // Batch Processing
+  // ==========================================================================
+
+  async getBatchOperations(): Promise<{ operations: Record<string, string> }> {
+    const response = await client.get('/batch/operations');
+    return response.data;
+  },
+
+  async batchUpload(files: File[]): Promise<{
+    success: boolean;
+    uploaded: Array<{ file_id: string; original_name: string; num_pages: number }>;
+    errors: Array<{ filename: string; error: string }>;
+    total_uploaded: number;
+    total_errors: number;
+  }> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    const response = await client.post('/batch/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  async batchWatermark(
+    fileIds: string[],
+    text: string,
+    opacity: number = 0.3,
+    rotation: number = 45
+  ): Promise<{
+    success: boolean;
+    results: Array<{ file_id: string; download_url: string }>;
+    errors: Array<{ file_id: string; error: string }>;
+  }> {
+    const response = await client.post('/batch/watermark', {
+      file_ids: fileIds,
+      text,
+      opacity,
+      rotation,
+    });
+    return response.data;
+  },
+
+  async batchEncrypt(
+    fileIds: string[],
+    password: string
+  ): Promise<{
+    success: boolean;
+    results: Array<{ file_id: string; download_url: string }>;
+    errors: Array<{ file_id: string; error: string }>;
+  }> {
+    const response = await client.post('/batch/encrypt', {
+      file_ids: fileIds,
+      password,
+    });
+    return response.data;
+  },
+
+  async batchRotate(
+    fileIds: string[],
+    rotation: number
+  ): Promise<{
+    success: boolean;
+    results: Array<{ file_id: string; download_url: string }>;
+    errors: Array<{ file_id: string; error: string }>;
+  }> {
+    const response = await client.post('/batch/rotate', {
+      file_ids: fileIds,
+      rotation,
+    });
+    return response.data;
+  },
+
+  async batchExtractText(fileIds: string[]): Promise<{
+    success: boolean;
+    results: Array<{ file_id: string; text_preview: string; download_url: string }>;
+    errors: Array<{ file_id: string; error: string }>;
+  }> {
+    const response = await client.post('/batch/extract-text', {
+      file_ids: fileIds,
+    });
+    return response.data;
+  },
+
+  async batchMerge(fileIds: string[]): Promise<{
+    success: boolean;
+    results: Array<{ file_id: string; num_pages: number; download_url: string }>;
+    errors: Array<{ error: string }>;
+  }> {
+    const response = await client.post('/batch/merge', {
+      file_ids: fileIds,
+    });
+    return response.data;
+  },
+
+  async batchDownloadZip(fileIds: string[]): Promise<{
+    success: boolean;
+    zip_file_id: string;
+    download_url: string;
+  }> {
+    const response = await client.post('/batch/download-zip', {
+      file_ids: fileIds,
+    });
+    return response.data;
+  },
 };
 
 export default api;
