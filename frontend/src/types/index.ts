@@ -135,3 +135,55 @@ export interface CommandCapabilities {
   categories: Record<string, CommandSuggestion[]>;
   total_commands: number;
 }
+
+// AI Assistant Types
+export interface AIProvider {
+  name: string;
+  display_name: string;
+  available: boolean;
+  model: string;
+}
+
+export interface AIStatusResponse {
+  available: boolean;
+  providers: AIProvider[];
+  active_provider: AIProvider | null;
+  privacy_notice: string;
+  rate_limit: {
+    requests_per_minute: number;
+    window_seconds: number;
+  };
+}
+
+export interface AIChatResponse {
+  success: boolean;
+  session_id: string;
+  message: string;
+  model: string;
+  tokens_used: number;
+}
+
+export interface AISummarizeResponse {
+  success: boolean;
+  summary: string;
+  detail_level: string;
+  pages_summarized: number[];
+  model: string;
+  tokens_used: number;
+}
+
+export interface AIExtractResponse {
+  success: boolean;
+  data: string;
+  format: string;
+  model: string;
+  tokens_used: number;
+}
+
+export interface AIMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  isStreaming?: boolean;
+}

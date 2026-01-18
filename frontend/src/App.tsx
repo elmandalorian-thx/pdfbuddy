@@ -15,6 +15,7 @@ import {
   ScanText,
   PenTool,
   Command,
+  Sparkles,
 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { FileUpload } from '@/components/pdf/FileUpload';
@@ -28,6 +29,7 @@ import { BatchProcessor } from '@/components/pdf/BatchProcessor';
 import { OCRDialog } from '@/components/pdf/OCRDialog';
 import { SignatureDialog } from '@/components/pdf/SignatureDialog';
 import { CommandPalette } from '@/components/smart-commands/CommandPalette';
+import { AIAssistantPanel } from '@/components/ai';
 import { Progress } from '@/components/ui/progress';
 import { usePDFStore } from '@/store/pdfStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -51,6 +53,7 @@ function App() {
   const [showBatchProcessor, setShowBatchProcessor] = useState(false);
   const [showOCRDialog, setShowOCRDialog] = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   // Smart Commands
   const smartCommands = useSmartCommands({
@@ -302,6 +305,17 @@ function App() {
                     <Command className="w-5 h-5" />
                   </Button>
 
+                  {/* AI Assistant Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowAIAssistant(true)}
+                    title="AI Assistant"
+                    className="touch-target"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </Button>
+
                   {/* OCR Button */}
                   <Button
                     variant="ghost"
@@ -530,6 +544,14 @@ function App() {
         <SignatureDialog
           open={showSignatureDialog}
           onOpenChange={setShowSignatureDialog}
+        />
+
+        {/* AI Assistant Panel */}
+        <AIAssistantPanel
+          isOpen={showAIAssistant}
+          onClose={() => setShowAIAssistant(false)}
+          fileId={document?.fileId || null}
+          fileName={document?.originalName}
         />
 
         {/* Smart Commands Palette */}

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import CORS_ORIGINS, TEMP_DIR, UPLOAD_DIR, PROCESSED_DIR
 from app.routers import pdf_router
 from app.routers import command_router
+from app.routers import ai_router
 from app.services.file_service import file_service
 
 
@@ -59,6 +60,7 @@ app.add_middleware(
 # Include routers
 app.include_router(pdf_router)
 app.include_router(command_router.router)
+app.include_router(ai_router.router)
 
 
 # Health check endpoint
