@@ -288,6 +288,56 @@ async def merge_pdfs(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class AppendPDFRequest(BaseModel):
+    file_id: str
+
+
+@router.post("/append")
+async def append_pdf(file_id: str = Form(...), file: UploadFile = File(...)):
+    """Append a PDF file to an existing document."""
+    # Validate the new file
+    if file.content_type not in ALLOWED_PDF_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are allowed.")
+
+    # Get existing file info
+    file_info = file_service.get_file_info(file_id)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="Original file not found")
+
+    existing_path = Path(file_info["path"])
+
+    try:
+        # Save the new PDF temporarily
+        content = await file.read()
+        new_file_info = await file_service.save_upload(content, file.filename, file.content_type)
+        new_path = Path(new_file_info["path"])
+
+        # Output path
+        output_path = PROCESSED_DIR / file_id / "processed.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Merge the two PDFs
+        pdf_service.merge_pdfs([existing_path, new_path], output_path)
+        file_service.update_file_path(file_id, output_path)
+
+        # Clean up temporary file
+        file_service.delete_file(new_file_info["id"])
+
+        # Regenerate info and thumbnails
+        pdf_info = pdf_service.get_pdf_info(output_path)
+        pdf_service.generate_thumbnails(output_path, file_id)
+        thumbnail_urls = [f"/api/thumbnail/{file_id}/{i+1}" for i in range(pdf_info["num_pages"])]
+
+        return {
+            "success": True,
+            "file_id": file_id,
+            "num_pages": pdf_info["num_pages"],
+            "thumbnail_urls": thumbnail_urls
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/split")
 async def split_pdf(request: SplitPDFRequest):
     """Split a PDF into multiple files."""

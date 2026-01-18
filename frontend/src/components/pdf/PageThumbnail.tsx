@@ -91,21 +91,29 @@ export function PageThumbnail({
       aria-selected={isSelected}
       aria-label={`Page ${page.pageNumber}${isSelected ? ', selected' : ''}`}
     >
-      {/* Selection indicator */}
-      <div
+      {/* Selection checkbox - click to toggle selection */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          // Toggle selection (add/remove without clearing others)
+          onSelect(page.pageNumber, false, true);
+        }}
         className={cn(
           'absolute top-4 left-4 z-20 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300',
+          'cursor-pointer hover:scale-110',
           isSelected
             ? 'bg-primary scale-100 shadow-lg shadow-primary/30'
-            : 'bg-white/80 dark:bg-gray-800/80 border border-border scale-0 group-hover:scale-100'
+            : 'bg-white/80 dark:bg-gray-800/80 border border-border scale-100 hover:border-primary'
         )}
+        title={isSelected ? 'Deselect page' : 'Select page'}
+        aria-label={isSelected ? 'Deselect page' : 'Select page'}
       >
         {isSelected ? (
           <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
         ) : (
           <div className="w-3 h-3 rounded-full border-2 border-muted-foreground/40" />
         )}
-      </div>
+      </button>
 
       {/* Drag handle - visible on touch/hover */}
       <div

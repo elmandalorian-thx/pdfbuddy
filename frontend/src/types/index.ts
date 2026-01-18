@@ -16,21 +16,48 @@ export interface PDFDocument {
   pageSizes: { width: number; height: number }[];
 }
 
-export interface Annotation {
+export interface BaseAnnotation {
   id: string;
+  pageNumber: number;
+}
+
+export interface DrawAnnotation extends BaseAnnotation {
   type: 'pen' | 'highlighter';
   points: [number, number][];
   color: string;
   width: number;
   opacity: number;
-  pageNumber: number;
 }
+
+export interface TextAnnotation extends BaseAnnotation {
+  type: 'text';
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+export type Annotation = DrawAnnotation | TextAnnotation;
 
 export interface AnnotationsByPage {
   [pageNumber: number]: Annotation[];
 }
 
-export type ToolType = 'select' | 'pen' | 'highlighter' | 'eraser';
+export type ToolType = 'select' | 'pen' | 'highlighter' | 'eraser' | 'text';
+
+export interface TextSettings {
+  fontSize: number;
+  fontFamily: string;
+  textColor: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
 
 export interface ToolSettings {
   penColor: string;
@@ -38,6 +65,7 @@ export interface ToolSettings {
   highlighterColor: string;
   highlighterWidth: number;
   highlighterOpacity: number;
+  text: TextSettings;
 }
 
 export interface UploadResponse {
