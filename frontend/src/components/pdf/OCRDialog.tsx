@@ -124,7 +124,7 @@ export function OCRDialog({ open, onOpenChange }: OCRDialogProps) {
 
     const blob = new Blob([fullText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = window.document.createElement('a');
     a.href = url;
     a.download = 'extracted_text.txt';
     a.click();

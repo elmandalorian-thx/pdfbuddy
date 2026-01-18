@@ -181,9 +181,13 @@ export interface AIExtractResponse {
 }
 
 export interface AIMessage {
-  id: string;
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: Date | string;
   isStreaming?: boolean;
+  metadata?: {
+    model?: string;
+    tokens_used?: number;
+  };
 }

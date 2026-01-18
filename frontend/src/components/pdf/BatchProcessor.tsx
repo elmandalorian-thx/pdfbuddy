@@ -144,7 +144,7 @@ export function BatchProcessor({ open, onOpenChange }: BatchProcessorProps) {
                 r.original_file_id === f.file_id || r.file_id === f.file_id
             );
             const errorFile = result.errors?.find(
-              (e: { file_id?: string }) => e.file_id === f.file_id
+              (e: { file_id?: string; error?: string }) => e.file_id === f.file_id
             );
 
             if (resultFile) {
