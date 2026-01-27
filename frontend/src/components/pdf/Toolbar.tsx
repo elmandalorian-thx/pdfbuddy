@@ -220,6 +220,9 @@ export function Toolbar() {
     try {
       // Download current PDF and merge with new ones
       const currentResponse = await fetch(api.getDownloadUrl(document.fileId));
+      if (!currentResponse.ok) {
+        throw new Error(`Failed to download current PDF: ${currentResponse.status === 404 ? 'File not found. Please re-upload the document.' : `HTTP ${currentResponse.status}`}`);
+      }
       const currentBlob = await currentResponse.blob();
       const currentFile = new File([currentBlob], document.originalName, {
         type: 'application/pdf',
