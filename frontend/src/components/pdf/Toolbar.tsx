@@ -17,6 +17,8 @@ import {
   Plus,
   Loader2,
   FilePlus,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { usePDFStore } from '@/store/pdfStore';
 import { api } from '@/api/client';
-import { parsePageRange, isValidImageType } from '@/lib/utils';
+import { parsePageRange, isValidImageType, cn } from '@/lib/utils';
 
 export function Toolbar() {
   const {
@@ -56,6 +58,7 @@ export function Toolbar() {
   const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
   const [showEncryptDialog, setShowEncryptDialog] = useState(false);
   const [showExtractDialog, setShowExtractDialog] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [splitMode, setSplitMode] = useState<'individual' | 'ranges' | 'count'>(
     'individual'
@@ -373,19 +376,77 @@ export function Toolbar() {
 
   if (!document) return null;
 
+  // Mobile menu item component
+  const MobileMenuItem = ({
+    icon: Icon,
+    label,
+    onClick,
+    disabled = false
+  }: {
+    icon: React.ElementType;
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }) => (
+    <button
+      onClick={() => {
+        onClick();
+        setShowMobileMenu(false);
+      }}
+      disabled={disabled || isLoading}
+      className={cn(
+        "flex items-center gap-3 w-full px-4 py-3 text-left transition-colors",
+        "hover:bg-muted active:bg-muted/80",
+        disabled && "opacity-50 pointer-events-none"
+      )}
+    >
+      <Icon className="w-5 h-5 text-muted-foreground" />
+      <span className="text-sm font-medium">{label}</span>
+    </button>
+  );
+
   return (
     <>
-      <div className="sticky top-0 z-40 bg-background border-b">
-        <div className="flex items-center gap-2 p-3 overflow-x-auto">
-          {/* Selection controls */}
-          <div className="flex items-center gap-1 border-r pr-2">
+      {/* Hidden file inputs */}
+      <input
+        ref={addPdfInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleAddPdf(e.target.files)}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleInsertImage(e.target.files)}
+      />
+      <input
+        ref={mergeInputRef}
+        type="file"
+        accept=".pdf"
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleMerge(e.target.files)}
+      />
+
+      {/* Main Toolbar */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+        <div className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3">
+          {/* Selection controls - Always visible */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={selectAllPages}
               title="Select all"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
             >
               <CheckSquare className="w-4 h-4" />
+              <span className="hidden sm:inline sm:ml-1">All</span>
             </Button>
             <Button
               variant="ghost"
@@ -393,19 +454,23 @@ export function Toolbar() {
               onClick={clearSelection}
               disabled={!hasSelection}
               title="Clear selection"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
             >
               <Square className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Undo/Redo */}
-          <div className="flex items-center gap-1 border-r pr-2">
+          <div className="w-px h-6 bg-border hidden xs:block" />
+
+          {/* Undo/Redo - Always visible */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={undo}
               disabled={undoStack.length === 0}
               title="Undo"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
             >
               <Undo2 className="w-4 h-4" />
             </Button>
@@ -415,23 +480,17 @@ export function Toolbar() {
               onClick={redo}
               disabled={redoStack.length === 0}
               title="Redo"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
             >
               <Redo2 className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Add content */}
-          <div className="flex items-center gap-1 border-r pr-2">
-            <input
-              ref={addPdfInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) =>
-                e.target.files && handleAddPdf(e.target.files)
-              }
-            />
+          <div className="w-px h-6 bg-border hidden sm:block" />
+
+          {/* Desktop: All toolbar buttons */}
+          <div className="hidden md:flex items-center gap-1">
+            {/* Add content */}
             <Button
               variant="ghost"
               size="sm"
@@ -440,19 +499,8 @@ export function Toolbar() {
               title="Add PDF pages"
             >
               <FilePlus className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">PDF</span>
+              PDF
             </Button>
-
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) =>
-                e.target.files && handleInsertImage(e.target.files)
-              }
-            />
             <Button
               variant="ghost"
               size="sm"
@@ -461,9 +509,8 @@ export function Toolbar() {
               title="Insert image"
             >
               <Image className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Image</span>
+              Image
             </Button>
-
             <Button
               variant="ghost"
               size="sm"
@@ -472,17 +519,8 @@ export function Toolbar() {
               title="Add blank page"
             >
               <Plus className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Blank</span>
+              Blank
             </Button>
-
-            <input
-              ref={mergeInputRef}
-              type="file"
-              accept=".pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => e.target.files && handleMerge(e.target.files)}
-            />
             <Button
               variant="ghost"
               size="sm"
@@ -491,12 +529,12 @@ export function Toolbar() {
               title="Merge PDFs"
             >
               <Merge className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Merge</span>
+              Merge
             </Button>
-          </div>
 
-          {/* Page operations */}
-          <div className="flex items-center gap-1 border-r pr-2">
+            <div className="w-px h-6 bg-border mx-1" />
+
+            {/* Page operations */}
             <Button
               variant="ghost"
               size="sm"
@@ -505,9 +543,8 @@ export function Toolbar() {
               title="Rotate selected"
             >
               <RotateCw className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Rotate</span>
+              Rotate
             </Button>
-
             <Button
               variant="ghost"
               size="sm"
@@ -516,9 +553,8 @@ export function Toolbar() {
               title="Delete selected"
             >
               <Trash2 className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Delete</span>
+              Delete
             </Button>
-
             <Button
               variant="ghost"
               size="sm"
@@ -527,12 +563,12 @@ export function Toolbar() {
               title="Split PDF"
             >
               <Split className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Split</span>
+              Split
             </Button>
-          </div>
 
-          {/* Advanced operations */}
-          <div className="flex items-center gap-1 border-r pr-2">
+            <div className="w-px h-6 bg-border mx-1" />
+
+            {/* Advanced operations */}
             <Button
               variant="ghost"
               size="sm"
@@ -541,9 +577,8 @@ export function Toolbar() {
               title="Add watermark"
             >
               <Droplets className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Watermark</span>
+              Watermark
             </Button>
-
             <Button
               variant="ghost"
               size="sm"
@@ -552,9 +587,8 @@ export function Toolbar() {
               title="Encrypt PDF"
             >
               <Lock className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Encrypt</span>
+              Encrypt
             </Button>
-
             <Button
               variant="ghost"
               size="sm"
@@ -563,57 +597,186 @@ export function Toolbar() {
               title="Extract text"
             >
               <FileText className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Extract</span>
+              Extract
             </Button>
           </div>
 
-          {/* Download */}
-          <div className="flex items-center gap-1 ml-auto">
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+          {/* Mobile: Primary actions */}
+          <div className="flex md:hidden items-center gap-0.5 sm:gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRotateSelected}
+              disabled={!hasSelection || isLoading}
+              title="Rotate"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
+            >
+              <RotateCw className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteSelected}
+              disabled={!hasSelection || isLoading}
+              title="Delete"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileMenu(true)}
+              title="More options"
+              className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Download - Always visible */}
+          <div className="flex items-center gap-1">
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             <Button
               variant="default"
               size="sm"
               onClick={handleDownload}
               disabled={isLoading}
+              className="h-9 sm:h-8 px-3 sm:px-4"
             >
-              <Download className="w-4 h-4 mr-1" />
-              Download
+              <Download className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Download</span>
             </Button>
           </div>
         </div>
+      </div>
 
+      {/* Mobile More Menu (Bottom Sheet) */}
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowMobileMenu(false)}
+          />
+
+          {/* Bottom Sheet */}
+          <div className="absolute inset-x-0 bottom-0 bg-background rounded-t-2xl shadow-2xl animate-slide-up-mobile max-h-[80vh] overflow-y-auto">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pb-3 border-b">
+              <h3 className="font-semibold text-lg">More Actions</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMobileMenu(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Menu Items */}
+            <div className="py-2">
+              {/* Add Content Section */}
+              <div className="px-4 py-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Add Content</p>
+              </div>
+              <MobileMenuItem
+                icon={FilePlus}
+                label="Add PDF Pages"
+                onClick={() => addPdfInputRef.current?.click()}
+              />
+              <MobileMenuItem
+                icon={Image}
+                label="Insert Image"
+                onClick={() => imageInputRef.current?.click()}
+              />
+              <MobileMenuItem
+                icon={Plus}
+                label="Add Blank Page"
+                onClick={handleAddBlankPage}
+              />
+              <MobileMenuItem
+                icon={Merge}
+                label="Merge PDFs"
+                onClick={() => mergeInputRef.current?.click()}
+              />
+
+              {/* Page Operations Section */}
+              <div className="px-4 py-2 mt-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Page Operations</p>
+              </div>
+              <MobileMenuItem
+                icon={Split}
+                label="Split PDF"
+                onClick={() => setShowSplitDialog(true)}
+              />
+
+              {/* Advanced Section */}
+              <div className="px-4 py-2 mt-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Advanced</p>
+              </div>
+              <MobileMenuItem
+                icon={Droplets}
+                label="Add Watermark"
+                onClick={() => setShowWatermarkDialog(true)}
+              />
+              <MobileMenuItem
+                icon={Lock}
+                label="Encrypt PDF"
+                onClick={() => setShowEncryptDialog(true)}
+              />
+              <MobileMenuItem
+                icon={FileText}
+                label="Extract Text"
+                onClick={() => setShowExtractDialog(true)}
+              />
+            </div>
+
+            {/* Safe area padding */}
+            <div className="h-safe-bottom" />
+          </div>
         </div>
+      )}
 
       {/* Floating Action Bar - appears when pages are selected */}
       {hasSelection && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slideUp">
-          <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30">
-            <span className="font-semibold">
-              {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''} selected
+        <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slideUp w-[calc(100%-2rem)] sm:w-auto max-w-md">
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 px-4 sm:px-6 py-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30">
+            <span className="font-semibold text-sm sm:text-base whitespace-nowrap">
+              {selectedPages.size} page{selectedPages.size !== 1 ? 's' : ''}
             </span>
-            <div className="w-px h-6 bg-primary-foreground/30" />
+            <div className="hidden sm:block w-px h-6 bg-primary-foreground/30" />
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleRotateSelected}
                 disabled={isLoading}
-                className="text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+                className="text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground h-9 px-2 sm:px-3"
                 title="Rotate selected pages"
               >
-                <RotateCw className="w-4 h-4 mr-1" />
-                Rotate
+                <RotateCw className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Rotate</span>
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleDeleteSelected}
                 disabled={isLoading}
-                className="text-primary-foreground hover:bg-destructive hover:text-destructive-foreground"
+                className="text-primary-foreground hover:bg-destructive hover:text-destructive-foreground h-9 px-2 sm:px-3"
                 title="Delete selected pages"
               >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
+                <Trash2 className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Delete</span>
               </Button>
             </div>
             <div className="w-px h-6 bg-primary-foreground/30" />
@@ -621,10 +784,10 @@ export function Toolbar() {
               variant="ghost"
               size="sm"
               onClick={clearSelection}
-              className="text-primary-foreground/70 hover:bg-primary-foreground/20 hover:text-primary-foreground"
+              className="text-primary-foreground/70 hover:bg-primary-foreground/20 hover:text-primary-foreground h-9 w-9 p-0"
               title="Clear selection"
             >
-              <Square className="w-4 h-4" />
+              <X className="w-4 h-4" />
             </Button>
             {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
           </div>
@@ -642,25 +805,28 @@ export function Toolbar() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant={splitMode === 'individual' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSplitMode('individual')}
+                className="flex-1 sm:flex-none"
               >
-                Individual Pages
+                Individual
               </Button>
               <Button
                 variant={splitMode === 'ranges' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSplitMode('ranges')}
+                className="flex-1 sm:flex-none"
               >
-                Page Ranges
+                Ranges
               </Button>
               <Button
                 variant={splitMode === 'count' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSplitMode('count')}
+                className="flex-1 sm:flex-none"
               >
                 By Count
               </Button>
@@ -675,6 +841,7 @@ export function Toolbar() {
                   value={splitRanges}
                   onChange={(e) => setSplitRanges(e.target.value)}
                   placeholder="1-5, 8, 10-12"
+                  className="mt-1.5"
                 />
               </div>
             )}
@@ -687,12 +854,13 @@ export function Toolbar() {
                   min={1}
                   value={splitCount}
                   onChange={(e) => setSplitCount(parseInt(e.target.value) || 1)}
+                  className="mt-1.5"
                 />
               </div>
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowSplitDialog(false)}>
               Cancel
             </Button>
@@ -723,6 +891,7 @@ export function Toolbar() {
                 value={watermarkText}
                 onChange={(e) => setWatermarkText(e.target.value)}
                 placeholder="CONFIDENTIAL"
+                className="mt-1.5"
               />
             </div>
 
@@ -737,12 +906,12 @@ export function Toolbar() {
                 step="0.1"
                 value={watermarkOpacity}
                 onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                className="w-full"
+                className="w-full mt-1.5"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setShowWatermarkDialog(false)}
@@ -780,6 +949,7 @@ export function Toolbar() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
+                className="mt-1.5"
               />
             </div>
 
@@ -790,11 +960,12 @@ export function Toolbar() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm password"
+                className="mt-1.5"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setShowEncryptDialog(false)}
@@ -829,7 +1000,7 @@ export function Toolbar() {
             </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setShowExtractDialog(false)}
