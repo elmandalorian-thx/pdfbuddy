@@ -269,12 +269,12 @@ async def merge_pdfs(files: List[UploadFile] = File(...)):
         pdf_service.merge_pdfs(temp_paths, output_path)
 
         # Register the merged file
-        file_service._file_registry[output_id] = {
+        file_service.register_file(output_id, {
             "id": output_id,
             "original_name": "merged.pdf",
             "file_type": "pdf",
             "path": str(output_path)
-        }
+        })
 
         # Generate info and thumbnails
         pdf_info = pdf_service.get_pdf_info(output_path)
@@ -369,12 +369,12 @@ async def split_pdf(request: SplitPDFRequest):
         split_files = []
         for path in output_paths:
             split_id = f"{request.file_id}_split_{path.stem}"
-            file_service._file_registry[split_id] = {
+            file_service.register_file(split_id, {
                 "id": split_id,
                 "original_name": path.name,
                 "file_type": "pdf",
                 "path": str(path)
-            }
+            })
             split_files.append({
                 "file_id": split_id,
                 "filename": path.name,
@@ -520,12 +520,12 @@ async def images_to_pdf(
         pdf_service.images_to_pdf(image_paths, output_path, page_size)
 
         # Register file
-        file_service._file_registry[output_id] = {
+        file_service.register_file(output_id, {
             "id": output_id,
             "original_name": "converted.pdf",
             "file_type": "pdf",
             "path": str(output_path)
-        }
+        })
 
         pdf_info = pdf_service.get_pdf_info(output_path)
         pdf_service.generate_thumbnails(output_path, output_id)
@@ -663,12 +663,12 @@ async def extract_images(file_id: str):
         images = []
         for path in image_paths:
             img_id = f"{file_id}_img_{path.stem}"
-            file_service._file_registry[img_id] = {
+            file_service.register_file(img_id, {
                 "id": img_id,
                 "original_name": path.name,
                 "file_type": "image",
                 "path": str(path)
-            }
+            })
             images.append({
                 "file_id": img_id,
                 "filename": path.name,

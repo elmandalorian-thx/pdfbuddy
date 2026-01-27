@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import asyncio
 import shutil
@@ -13,12 +14,50 @@ from app.config import (
     FILE_EXPIRY_HOURS
 )
 
+# Registry persistence file
+REGISTRY_FILE = PROCESSED_DIR / ".file_registry.json"
+
 
 class FileService:
     """Service for file management operations."""
 
-    # In-memory storage for file metadata (in production, use a database)
+    # In-memory storage for file metadata
     _file_registry: Dict[str, Dict[str, Any]] = {}
+    _initialized: bool = False
+
+    @classmethod
+    def _save_registry(cls) -> None:
+        """Persist the file registry to disk."""
+        try:
+            with open(REGISTRY_FILE, "w") as f:
+                json.dump(cls._file_registry, f)
+        except Exception as e:
+            print(f"Warning: Failed to save file registry: {e}")
+
+    @classmethod
+    def _load_registry(cls) -> None:
+        """Load the file registry from disk."""
+        if cls._initialized:
+            return
+        cls._initialized = True
+
+        if REGISTRY_FILE.exists():
+            try:
+                with open(REGISTRY_FILE, "r") as f:
+                    cls._file_registry = json.load(f)
+                # Validate entries - remove any with missing files
+                invalid_ids = []
+                for file_id, info in cls._file_registry.items():
+                    if not Path(info.get("path", "")).exists():
+                        invalid_ids.append(file_id)
+                for file_id in invalid_ids:
+                    del cls._file_registry[file_id]
+                if invalid_ids:
+                    cls._save_registry()
+                print(f"Loaded {len(cls._file_registry)} files from registry")
+            except Exception as e:
+                print(f"Warning: Failed to load file registry: {e}")
+                cls._file_registry = {}
 
     @classmethod
     def generate_file_id(cls) -> str:
@@ -69,12 +108,14 @@ class FileService:
         }
 
         cls._file_registry[file_id] = file_info
+        cls._save_registry()
 
         return file_info
 
     @classmethod
     def get_file_info(cls, file_id: str) -> Optional[Dict[str, Any]]:
         """Get file information by ID."""
+        cls._load_registry()
         return cls._file_registry.get(file_id)
 
     @classmethod
@@ -86,11 +127,19 @@ class FileService:
         return None
 
     @classmethod
+    def register_file(cls, file_id: str, file_info: Dict[str, Any]) -> None:
+        """Register a file in the registry with persistence."""
+        cls._load_registry()
+        cls._file_registry[file_id] = file_info
+        cls._save_registry()
+
+    @classmethod
     def update_file_path(cls, file_id: str, new_path: Path) -> None:
         """Update the file path for a given file ID."""
         if file_id in cls._file_registry:
             cls._file_registry[file_id]["path"] = str(new_path)
             cls._file_registry[file_id]["modified_at"] = datetime.utcnow().isoformat()
+            cls._save_registry()
 
     @classmethod
     async def save_processed_file(
@@ -156,6 +205,7 @@ class FileService:
         # Remove from registry
         if file_id in cls._file_registry:
             del cls._file_registry[file_id]
+            cls._save_registry()
 
         return success
 
@@ -192,5 +242,6 @@ class FileService:
         return dest_path
 
 
-# Create singleton instance
+# Create singleton instance and load persisted registry
 file_service = FileService()
+file_service._load_registry()

@@ -111,12 +111,12 @@ class BatchService:
 
                 # Register output file
                 output_id = f"batch_wm_{file_id}"
-                file_service._file_registry[output_id] = {
+                file_service.register_file(output_id, {
                     'id': output_id,
                     'original_name': f"watermarked_{file_info.get('original_name', 'document.pdf')}",
                     'file_type': 'pdf',
                     'path': str(output_path)
-                }
+                })
 
                 results.append({
                     'file_id': output_id,
@@ -157,12 +157,12 @@ class BatchService:
                 pdf_service.encrypt_pdf(file_path, output_path, password)
 
                 output_id = f"batch_enc_{file_id}"
-                file_service._file_registry[output_id] = {
+                file_service.register_file(output_id, {
                     'id': output_id,
                     'original_name': f"encrypted_{file_info.get('original_name', 'document.pdf')}",
                     'file_type': 'pdf',
                     'path': str(output_path)
-                }
+                })
 
                 results.append({
                     'file_id': output_id,
@@ -207,12 +207,12 @@ class BatchService:
                 pdf_service.rotate_pages(file_path, output_path, all_pages, rotation)
 
                 output_id = f"batch_rot_{file_id}"
-                file_service._file_registry[output_id] = {
+                file_service.register_file(output_id, {
                     'id': output_id,
                     'original_name': f"rotated_{file_info.get('original_name', 'document.pdf')}",
                     'file_type': 'pdf',
                     'path': str(output_path)
-                }
+                })
 
                 results.append({
                     'file_id': output_id,
@@ -259,12 +259,12 @@ class BatchService:
                         f.write("\n\n")
 
                 output_id = f"batch_txt_{file_id}"
-                file_service._file_registry[output_id] = {
+                file_service.register_file(output_id, {
                     'id': output_id,
                     'original_name': f"text_{file_info.get('original_name', 'document')}.txt",
                     'file_type': 'text',
                     'path': str(text_path)
-                }
+                })
 
                 results.append({
                     'file_id': output_id,
@@ -313,12 +313,12 @@ class BatchService:
 
             pdf_service.merge_pdfs(file_paths, output_path)
 
-            file_service._file_registry[output_id] = {
+            file_service.register_file(output_id, {
                 'id': output_id,
                 'original_name': 'merged.pdf',
                 'file_type': 'pdf',
                 'path': str(output_path)
-            }
+            })
 
             # Get info about merged PDF
             pdf_info = pdf_service.get_pdf_info(output_path)
@@ -363,12 +363,12 @@ class BatchService:
                         zf.write(file_path, file_info.get('original_name', file_path.name))
 
         # Register ZIP file
-        file_service._file_registry[zip_id] = {
+        file_service.register_file(zip_id, {
             'id': zip_id,
             'original_name': zip_name,
             'file_type': 'zip',
             'path': str(zip_path)
-        }
+        })
 
         return zip_path
 
