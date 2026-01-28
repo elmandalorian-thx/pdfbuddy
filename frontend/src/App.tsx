@@ -263,15 +263,15 @@ function App() {
       <div ref={containerRef} className="min-h-screen bg-background">
         {/* Header */}
         <header className="sticky top-0 z-50 glass border-b border-border/50">
-          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
-                <FileText className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold leading-none">PDF Buddy</h1>
-                <p className="text-xs text-muted-foreground">
+              <div className="hidden xs:block">
+                <h1 className="text-base sm:text-lg font-bold leading-none">PDF Buddy</h1>
+                <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
                   Edit PDFs with ease
                 </p>
               </div>
@@ -279,7 +279,7 @@ function App() {
 
             {/* Center - Document info */}
             {document && (
-              <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50">
+              <div className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50">
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium truncate max-w-[200px]">
                   {document.originalName}
@@ -291,111 +291,110 @@ function App() {
             )}
 
             {/* Right actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               {document && (
                 <>
-                  {/* Smart Commands Button */}
+                  {/* Primary actions - always visible */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => smartCommands.open()}
                     title="Smart Commands (⌘K)"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10"
                   >
-                    <Command className="w-5 h-5" />
+                    <Command className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
-                  {/* AI Assistant Button */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowAIAssistant(true)}
                     title="AI Assistant"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10"
                   >
-                    <Sparkles className="w-5 h-5" />
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
-                  {/* OCR Button */}
+                  {/* Secondary actions - hidden on small mobile */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowOCRDialog(true)}
                     title="OCR - Extract Text from Scans"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10 hidden xs:flex"
                   >
-                    <ScanText className="w-5 h-5" />
+                    <ScanText className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
-                  {/* Signature Button */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowSignatureDialog(true)}
                     title="Add Digital Signature"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10 hidden sm:flex"
                   >
-                    <PenTool className="w-5 h-5" />
+                    <PenTool className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
-                  {/* Form Filler Button */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowFormFiller(true)}
                     title="Fill Form"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10 hidden sm:flex"
                   >
-                    <FileInput className="w-5 h-5" />
+                    <FileInput className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
-                  {/* Metadata Button */}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowMetadataEditor(true)}
                     title="Edit Metadata"
-                    className="touch-target"
+                    className="h-9 w-9 sm:h-10 sm:w-10 hidden md:flex"
                   >
-                    <Info className="w-5 h-5" />
+                    <Info className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </>
               )}
 
-              {/* Batch Processing Button - Available without document */}
+              {/* Batch Processing - hidden on mobile when document is loaded */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowBatchProcessor(true)}
                 title="Batch Processing"
-                className="touch-target"
+                className={cn(
+                  "h-9 w-9 sm:h-10 sm:w-10",
+                  document ? "hidden md:flex" : ""
+                )}
               >
-                <Layers className="w-5 h-5" />
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
 
-              {/* Keyboard Shortcuts Button */}
+              {/* Keyboard Shortcuts - desktop only */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowKeyboardHelp(true)}
                 title="Keyboard Shortcuts (?)"
-                className="touch-target hidden sm:flex"
+                className="h-9 w-9 sm:h-10 sm:w-10 hidden md:flex"
               >
-                <Keyboard className="w-5 h-5" />
+                <Keyboard className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
 
-              {/* Theme Toggle */}
+              {/* Theme Toggle - always visible */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleTheme}
                 title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                className="touch-target"
+                className="h-9 w-9 sm:h-10 sm:w-10"
               >
                 {isDark ? (
-                  <Sun className="w-5 h-5" />
+                  <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : (
-                  <Moon className="w-5 h-5" />
+                  <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </Button>
 
@@ -404,7 +403,7 @@ function App() {
                   variant="outline"
                   size="sm"
                   onClick={clearDocument}
-                  className="ml-2 hidden sm:flex"
+                  className="ml-1 sm:ml-2 hidden sm:flex h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   New File
                 </Button>
@@ -442,28 +441,28 @@ function App() {
 
         {/* Success toast */}
         {showSuccess && (
-          <div className="fixed top-20 right-4 z-50 animate-slideDown">
-            <div className="bg-success text-success-foreground px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
-              <CheckCircle className="w-5 h-5" />
-              <p className="text-sm font-medium">File loaded successfully!</p>
+          <div className="fixed top-16 sm:top-20 left-4 right-4 sm:left-auto sm:right-4 z-50 animate-slideDown">
+            <div className="bg-success text-success-foreground px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl shadow-lg flex items-center gap-2 sm:gap-3">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              <p className="text-xs sm:text-sm font-medium">File loaded successfully!</p>
             </div>
           </div>
         )}
 
         {/* Error toast */}
         {error && (
-          <div className="fixed top-20 right-4 z-50 animate-slideDown">
+          <div className="fixed top-16 sm:top-20 left-4 right-4 sm:left-auto sm:right-4 z-50 animate-slideDown">
             <div
               className={cn(
-                'bg-destructive text-destructive-foreground px-4 py-3 rounded-xl shadow-lg',
-                'flex items-center gap-3 max-w-md'
+                'bg-destructive text-destructive-foreground px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl shadow-lg',
+                'flex items-center gap-2 sm:gap-3 sm:max-w-md'
               )}
             >
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm flex-1">{error}</p>
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              <p className="text-xs sm:text-sm flex-1 line-clamp-2">{error}</p>
               <button
                 onClick={() => setError(null)}
-                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
                 aria-label="Dismiss error"
               >
                 <X className="w-4 h-4" />
