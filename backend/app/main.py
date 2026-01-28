@@ -58,7 +58,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(pdf_router)
+app.include_router(pdf_router.router)
 app.include_router(command_router.router)
 app.include_router(ai_router.router)
 
