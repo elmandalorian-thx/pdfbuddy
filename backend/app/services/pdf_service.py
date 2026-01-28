@@ -514,14 +514,41 @@ class PDFService:
                     "width": float,
                     "opacity": float
                 },
+                {
+                    "type": "text",
+                    "text": "string",
+                    "x": float,
+                    "y": float,
+                    "fontSize": int,
+                    "fontFamily": str,
+                    "color": "#RRGGBB",
+                    "bold": bool,
+                    "italic": bool,
+                    "underline": bool
+                },
                 ...
             ]
         }
         """
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.lib.fonts import addMapping
+
         reader = PdfReader(file_path)
         writer = PdfWriter()
 
         settings = QUALITY_SETTINGS.get(quality, QUALITY_SETTINGS["high"])
+
+        # Font mapping for common fonts
+        font_mapping = {
+            "Arial": "Helvetica",
+            "Helvetica": "Helvetica",
+            "Times New Roman": "Times-Roman",
+            "Georgia": "Times-Roman",
+            "Verdana": "Helvetica",
+            "Courier New": "Courier",
+            "Courier": "Courier",
+        }
 
         for i, page in enumerate(reader.pages):
             page_num = i + 1
@@ -537,42 +564,120 @@ class PDFService:
 
                 for annotation in annotations[page_num]:
                     ann_type = annotation.get("type", "pen")
-                    points = annotation.get("points", [])
-                    color_hex = annotation.get("color", "#000000")
-                    width = annotation.get("width", 2)
-                    opacity = annotation.get("opacity", 1.0)
 
-                    if not points or len(points) < 2:
-                        continue
+                    if ann_type == "text":
+                        # Handle text annotation
+                        text = annotation.get("text", "")
+                        if not text:
+                            continue
 
-                    # Parse color
-                    color_hex = color_hex.lstrip("#")
-                    r = int(color_hex[0:2], 16) / 255
-                    g = int(color_hex[2:4], 16) / 255
-                    b = int(color_hex[4:6], 16) / 255
+                        x = annotation.get("x", 0)
+                        y = annotation.get("y", 0)
+                        font_size = annotation.get("fontSize", 16)
+                        font_family = annotation.get("fontFamily", "Arial")
+                        color_hex = annotation.get("color", "#000000").lstrip("#")
+                        bold = annotation.get("bold", False)
+                        italic = annotation.get("italic", False)
+                        underline = annotation.get("underline", False)
 
-                    c.saveState()
+                        # Parse color
+                        r = int(color_hex[0:2], 16) / 255
+                        g = int(color_hex[2:4], 16) / 255
+                        b = int(color_hex[4:6], 16) / 255
 
-                    if ann_type == "highlighter":
-                        c.setStrokeAlpha(opacity)
-                        c.setFillAlpha(opacity)
+                        # Map font family
+                        base_font = font_mapping.get(font_family, "Helvetica")
+
+                        # Apply bold/italic variants
+                        if base_font == "Helvetica":
+                            if bold and italic:
+                                font_name = "Helvetica-BoldOblique"
+                            elif bold:
+                                font_name = "Helvetica-Bold"
+                            elif italic:
+                                font_name = "Helvetica-Oblique"
+                            else:
+                                font_name = "Helvetica"
+                        elif base_font == "Times-Roman":
+                            if bold and italic:
+                                font_name = "Times-BoldItalic"
+                            elif bold:
+                                font_name = "Times-Bold"
+                            elif italic:
+                                font_name = "Times-Italic"
+                            else:
+                                font_name = "Times-Roman"
+                        elif base_font == "Courier":
+                            if bold and italic:
+                                font_name = "Courier-BoldOblique"
+                            elif bold:
+                                font_name = "Courier-Bold"
+                            elif italic:
+                                font_name = "Courier-Oblique"
+                            else:
+                                font_name = "Courier"
+                        else:
+                            font_name = base_font
+
+                        c.saveState()
+                        c.setFillColorRGB(r, g, b)
+                        c.setFont(font_name, font_size)
+
+                        # Convert y coordinate (PDF origin is bottom-left)
+                        pdf_y = page_height - y - font_size
+
+                        # Handle multi-line text
+                        lines = text.split('\n')
+                        for line_idx, line in enumerate(lines):
+                            line_y = pdf_y - (line_idx * font_size * 1.2)
+                            c.drawString(x, line_y, line)
+
+                            # Draw underline if needed
+                            if underline and line:
+                                text_width = c.stringWidth(line, font_name, font_size)
+                                c.setStrokeColorRGB(r, g, b)
+                                c.setLineWidth(1)
+                                c.line(x, line_y - 2, x + text_width, line_y - 2)
+
+                        c.restoreState()
                     else:
-                        c.setStrokeAlpha(opacity)
+                        # Handle pen/highlighter annotation
+                        points = annotation.get("points", [])
+                        color_hex = annotation.get("color", "#000000")
+                        width = annotation.get("width", 2)
+                        opacity = annotation.get("opacity", 1.0)
 
-                    c.setStrokeColorRGB(r, g, b)
-                    c.setLineWidth(width)
-                    c.setLineCap(1)  # Round cap
-                    c.setLineJoin(1)  # Round join
+                        if not points or len(points) < 2:
+                            continue
 
-                    # Draw path
-                    path = c.beginPath()
-                    path.moveTo(points[0][0], page_height - points[0][1])
+                        # Parse color
+                        color_hex = color_hex.lstrip("#")
+                        r = int(color_hex[0:2], 16) / 255
+                        g = int(color_hex[2:4], 16) / 255
+                        b = int(color_hex[4:6], 16) / 255
 
-                    for point in points[1:]:
-                        path.lineTo(point[0], page_height - point[1])
+                        c.saveState()
 
-                    c.drawPath(path, stroke=1, fill=0)
-                    c.restoreState()
+                        if ann_type == "highlighter":
+                            c.setStrokeAlpha(opacity)
+                            c.setFillAlpha(opacity)
+                        else:
+                            c.setStrokeAlpha(opacity)
+
+                        c.setStrokeColorRGB(r, g, b)
+                        c.setLineWidth(width)
+                        c.setLineCap(1)  # Round cap
+                        c.setLineJoin(1)  # Round join
+
+                        # Draw path
+                        path = c.beginPath()
+                        path.moveTo(points[0][0], page_height - points[0][1])
+
+                        for point in points[1:]:
+                            path.lineTo(point[0], page_height - point[1])
+
+                        c.drawPath(path, stroke=1, fill=0)
+                        c.restoreState()
 
                 c.save()
                 annotation_buffer.seek(0)

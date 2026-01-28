@@ -28,6 +28,33 @@ export function parsePageRange(rangeStr: string, maxPages: number): number[] {
   return [...new Set(pages)].sort((a, b) => a - b);
 }
 
+// Parse page ranges preserving the range structure (for split functionality)
+// Returns array of [start, end] tuples
+export function parsePageRangesPreserved(rangeStr: string, maxPages: number): [number, number][] {
+  const ranges: [number, number][] = [];
+  const parts = rangeStr.replace(/\s/g, '').split(',');
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-').map(Number);
+      if (!isNaN(start) && !isNaN(end)) {
+        const validStart = Math.max(1, Math.min(start, maxPages));
+        const validEnd = Math.max(1, Math.min(end, maxPages));
+        if (validStart <= validEnd) {
+          ranges.push([validStart, validEnd]);
+        }
+      }
+    } else {
+      const page = parseInt(part, 10);
+      if (!isNaN(page) && page >= 1 && page <= maxPages) {
+        ranges.push([page, page]);
+      }
+    }
+  }
+
+  return ranges;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;

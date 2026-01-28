@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { usePDFStore } from '@/store/pdfStore';
 import { api } from '@/api/client';
-import { parsePageRange, isValidImageType, cn } from '@/lib/utils';
+import { parsePageRangesPreserved, isValidImageType, cn } from '@/lib/utils';
 
 export function Toolbar() {
   const {
@@ -258,9 +258,9 @@ export function Toolbar() {
     try {
       let ranges: number[][] | undefined;
       if (splitMode === 'ranges' && splitRanges) {
-        const parsed = parsePageRange(splitRanges, document.numPages);
-        // Convert to ranges format
-        ranges = parsed.map((p) => [p, p]);
+        // Use parsePageRangesPreserved to keep the actual range structure
+        // e.g., "1-5, 8-10" becomes [[1, 5], [8, 10]] instead of [[1,1], [2,2], ...]
+        ranges = parsePageRangesPreserved(splitRanges, document.numPages);
       }
 
       const response = await api.splitPDF(
