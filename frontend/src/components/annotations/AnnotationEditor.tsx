@@ -64,17 +64,55 @@ export function AnnotationEditor({ initialPage = 1, onClose }: AnnotationEditorP
 
     setIsSaving(true);
     try {
-      // Convert annotations to API format
+      // Convert annotations to API format - handle both draw and text annotations
       const annotationsForApi: Record<number, unknown[]> = {};
 
       Object.entries(annotations).forEach(([page, pageAnnotations]) => {
-        annotationsForApi[parseInt(page)] = pageAnnotations.map((a: { type: string; points: [number, number][]; color: string; width: number; opacity: number }) => ({
-          type: a.type,
-          points: a.points,
-          color: a.color,
-          width: a.width,
-          opacity: a.opacity,
-        }));
+        annotationsForApi[parseInt(page)] = pageAnnotations.map((annotation: { type: string; [key: string]: unknown }) => {
+          if (annotation.type === 'text') {
+            // Text annotation - include all text-specific properties
+            const textAnnotation = annotation as {
+              type: string;
+              text: string;
+              x: number;
+              y: number;
+              fontSize: number;
+              fontFamily: string;
+              color: string;
+              bold: boolean;
+              italic: boolean;
+              underline: boolean;
+            };
+            return {
+              type: textAnnotation.type,
+              text: textAnnotation.text,
+              x: textAnnotation.x,
+              y: textAnnotation.y,
+              fontSize: textAnnotation.fontSize,
+              fontFamily: textAnnotation.fontFamily,
+              color: textAnnotation.color,
+              bold: textAnnotation.bold,
+              italic: textAnnotation.italic,
+              underline: textAnnotation.underline,
+            };
+          } else {
+            // Draw annotation (pen/highlighter)
+            const drawAnnotation = annotation as {
+              type: string;
+              points: [number, number][];
+              color: string;
+              width: number;
+              opacity: number;
+            };
+            return {
+              type: drawAnnotation.type,
+              points: drawAnnotation.points,
+              color: drawAnnotation.color,
+              width: drawAnnotation.width,
+              opacity: drawAnnotation.opacity,
+            };
+          }
+        });
       });
 
       const response = await api.saveAnnotations(

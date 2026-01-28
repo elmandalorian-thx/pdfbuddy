@@ -61,6 +61,7 @@ export function AIAssistantPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<(() => void) | null>(null);
+  const streamingContentRef = useRef<string>(''); // Track accumulated content without stale closure
 
   // Check AI status on mount
   useEffect(() => {
@@ -118,6 +119,7 @@ export function AIAssistantPanel({
     setError(null);
     setIsStreaming(true);
     setStreamingContent('');
+    streamingContentRef.current = ''; // Reset ref for new stream
 
     // Use streaming API
     abortRef.current = api.aiChatStream(
@@ -126,28 +128,36 @@ export function AIAssistantPanel({
       sessionId || undefined,
       undefined,
       (chunk) => {
+        // Update both state (for display) and ref (for final capture)
+        streamingContentRef.current += chunk;
         setStreamingContent((prev) => prev + chunk);
       },
       (finalSessionId) => {
         setIsStreaming(false);
         setSessionId(finalSessionId);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: streamingContent,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        // Use the ref value to avoid stale closure issue
+        const finalContent = streamingContentRef.current;
+        if (finalContent.trim()) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: finalContent,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }
         setStreamingContent('');
+        streamingContentRef.current = '';
       },
       (err) => {
         setIsStreaming(false);
         setError(err);
         setStreamingContent('');
+        streamingContentRef.current = '';
       }
     );
-  }, [input, fileId, isLoading, isStreaming, sessionId, streamingContent]);
+  }, [input, fileId, isLoading, isStreaming, sessionId]); // Removed streamingContent from deps
 
   const handleQuickAction = async (action: 'summarize' | 'key-points' | 'action-items') => {
     if (!fileId || isLoading || isStreaming) return;

@@ -109,16 +109,30 @@ export function AnnotationCanvas({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // Clear existing objects (keep background)
+    // Get the currently active/editing object to preserve it
+    const activeObject = canvas.getActiveObject();
+    const isEditingText = activeObject?.type === 'i-text' && (activeObject as fabric.IText).isEditing;
+    const editingAnnotationId = isEditingText ? activeObject?.data?.annotationId : null;
+
+    // Clear existing objects (keep background) - but skip the one being edited
     const objects = canvas.getObjects();
     objects.forEach((obj) => {
       if (obj.type === 'path' || obj.type === 'i-text' || obj.type === 'textbox') {
+        // Don't remove the text object currently being edited
+        if (obj.data?.annotationId === editingAnnotationId) {
+          return;
+        }
         canvas.remove(obj);
       }
     });
 
-    // Add saved annotations
+    // Add saved annotations - skip the one being edited (it's already on canvas)
     pageAnnotations.forEach((annotation) => {
+      // Skip if this annotation is currently being edited
+      if (annotation.id === editingAnnotationId) {
+        return;
+      }
+
       if (annotation.type === 'text') {
         // Text annotation
         const textAnnotation = annotation as TextAnnotation;
@@ -277,19 +291,25 @@ export function AnnotationCanvas({
   }, [currentTool, toolSettings.text, pageNumber]);
 
   // Handle text editing completion - update or create annotation
+  // Only save when editing is EXITED, not on every keystroke
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    const handleTextChanged = (e: fabric.IEvent & { target?: fabric.IText }) => {
-      const target = e.target;
-      if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
+    // Save text annotation to store
+    const saveTextAnnotation = (target: fabric.IText) => {
+      const annotationId = target.data?.annotationId;
+      if (!annotationId) return;
 
-      const annotationId = target.data.annotationId;
       const textContent = target.text || '';
 
       // Don't save empty text
-      if (!textContent.trim()) return;
+      if (!textContent.trim()) {
+        // Remove empty text object from canvas
+        canvas.remove(target);
+        canvas.renderAll();
+        return;
+      }
 
       const existingAnnotations = usePDFStore.getState().annotations[pageNumber] || [];
       const existingAnnotation = existingAnnotations.find(a => a.id === annotationId);
@@ -329,40 +349,38 @@ export function AnnotationCanvas({
       }
     };
 
-    // Handle when text editing exits
+    // Handle when text editing exits - this is when we actually save
     const handleEditingExited = (e: fabric.IEvent & { target?: fabric.IText }) => {
       const target = e.target;
       if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
 
-      const textContent = target.text || '';
+      saveTextAnnotation(target);
+    };
 
-      // If exiting edit mode with no text, remove the object
-      if (!textContent.trim()) {
-        canvas.remove(target);
-        canvas.renderAll();
-        return;
-      }
+    // Handle object modified (dragging/resizing completed text)
+    const handleObjectModified = (e: fabric.IEvent & { target?: fabric.IText }) => {
+      const target = e.target;
+      if (!target || target.type !== 'i-text' || !target.data?.annotationId) return;
 
-      // Save the annotation if it's new
-      if (target.data.isNew) {
-        handleTextChanged(e);
+      // Only save if not currently editing (position/size change only)
+      if (!target.isEditing) {
+        saveTextAnnotation(target);
       }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canvas.on('text:changed', handleTextChanged as any);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canvas.on('object:modified', handleTextChanged as any);
+    // NOTE: We intentionally do NOT listen to text:changed anymore
+    // This prevents saving on every keystroke and avoids the re-render bug
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.on('text:editing:exited', handleEditingExited as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.on('object:modified', handleObjectModified as any);
 
     return () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.off('text:changed', handleTextChanged as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.off('object:modified', handleTextChanged as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.off('text:editing:exited', handleEditingExited as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvas.off('object:modified', handleObjectModified as any);
     };
   }, [pageNumber, addAnnotation, removeAnnotation]);
 
